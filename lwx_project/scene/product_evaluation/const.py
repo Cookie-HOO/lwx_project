@@ -21,3 +21,7 @@ LAST_TERM_PATH = os.path.join(DATA_TMP_PATH, "上期保费.xlsx")
 TEXT_SUMMARY = """{year_num}年前{until_last_season}，{company_name}（以下简称“{company_abbr}”）先后在我行上线{product_all_count}款产品，其中{product_type_count}。
 我行代理该公司保费共{fee_total}亿元，其中趸缴{dunjiao_fee}亿元，期缴{qijiao_fee}亿元。
 主销产品情况：{main_product}，共计{main_product_fee_num}亿元，占代理该公司整体保费规模的{main_product_fee_percent}。"""
+
+
+# 匹配期数时可有可无的内容
+OPTIONAL_PATTERN = ["保险", "产品", "计划", "年金", "组合", "分红"]
