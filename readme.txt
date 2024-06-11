@@ -25,7 +25,7 @@
     - 先用pyinstaller打包一下
         pyinstaller -Fw .\lwx_project\main.py
     - 找到根目录的main.spec文件
-        pathex=["..\lwx_project"],  # 将当前项目根目录添加进去
+        pathex=["."],  # 将当前项目根目录添加进去
     - 再次打包
         pyinstaller .\main.spec --distpath=.
 
@@ -40,3 +40,24 @@
             报错找不到C++ Microsoft 组件的方法
                 https://blog.csdn.net/qq_37553692/article/details/128996821
     最终从后续的扩展性考虑，选择pyqt
+
+3. pyinstaller
+    路径问题
+        1. 把代码目录打包到exe中
+            打包：spec文件中定义打包内容
+                ['lwx_project\\main_prod.py'],
+                pathex=["."],
+            使用
+                第一行定义了入口代码，第二行定义了项目的根目录（python的搜索路径）
+        2. 把静态资源打包到exe中
+            打包：spec文件中定义打包内容
+                datas=[('.\\lwx_project\\client\\ui', '.\\ui')],
+            使用：
+                将ui文件夹放到了根的ui文件夹
+                根目录为：sys._MEIPASS，win下是一个C盘的tmp目录
+        3. exe的外部内容
+            exe文件可以看作是一个python文件
+                a.txt
+                main.exe
+            只要a.txt和main.exe同级，那么main.exe中可以直接 with open("a.txt") 获取内容
+

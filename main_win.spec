@@ -6,9 +6,9 @@ block_cipher = None
 
 a = Analysis(
     ['lwx_project\\main_prod.py'],
-    pathex=["..\lwx_project"],
+    pathex=["."],
+    datas=[('.\\lwx_project\\client\\ui', '.\\ui')],
     binaries=[],
-    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -41,4 +41,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='.\\static\\app.ico'
 )
