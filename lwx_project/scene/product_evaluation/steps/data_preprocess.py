@@ -17,6 +17,7 @@ def main():
 
     # 匹配简称
     df_product_list = pd.read_excel(COMPANY_ABBR_PATH)
+    df_product_list["全称"] = df_product_list["全称"].apply(lambda x: x.replace(' ', ''))
     df = df.merge(df_product_list, how='left', left_on='保险公司', right_on='全称')
     return df
 

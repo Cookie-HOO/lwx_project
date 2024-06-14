@@ -63,13 +63,13 @@ class TimeObj:
         # 前三季度、前两季度、一季度、1-12月
         season_num = self.season
         if season_num == 1:
-            return "1-12月"
+            return f"{self.year-1}年1-12月"
         elif season_num == 2:
-            return "一季度"
+            return f"{self.year}年一季度"
         elif season_num == 3:
-            return "前两季度"
+            return f"{self.year}年前两季度"
         elif season_num == 4:
-            return "前三季度"
+            return f"{self.year}年前三季度"
 
     @property
     def is_first_day_of_this_year(self):

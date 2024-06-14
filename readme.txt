@@ -61,3 +61,6 @@
                 main.exe
             只要a.txt和main.exe同级，那么main.exe中可以直接 with open("a.txt") 获取内容
 
+4. python触发excel的宏
+    win下用win32的包
+    mac下用xlwings包

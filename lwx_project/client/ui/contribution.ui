@@ -6,22 +6,38 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>686</width>
-    <height>515</height>
+    <width>1260</width>
+    <height>779</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
+  <property name="layoutDirection">
+   <enum>Qt::LeftToRight</enum>
+  </property>
   <property name="styleSheet">
    <string notr="true"/>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout">
+   <layout class="QVBoxLayout" name="verticalLayout_3">
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
-       <widget class="QPushButton" name="upload_button">
+       <spacer name="horizontalSpacer_6">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="upload_table_button">
         <property name="text">
          <string>上传文件</string>
         </property>
@@ -65,22 +81,202 @@
         </property>
        </widget>
       </item>
+      <item>
+       <spacer name="horizontalSpacer_5">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
      </layout>
     </item>
     <item>
-     <widget class="QTableWidget" name="table_value"/>
+     <layout class="QHBoxLayout" name="horizontalLayout_15">
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_4">
+            <property name="text">
+             <string>贡献率表格</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_13">
+          <item>
+           <widget class="QLabel" name="rank_1">
+            <property name="styleSheet">
+             <string notr="true">color: red</string>
+            </property>
+            <property name="text">
+             <string>第一</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="rank_2">
+            <property name="styleSheet">
+             <string notr="true">color: red</string>
+            </property>
+            <property name="text">
+             <string>第二</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="rank_3">
+            <property name="styleSheet">
+             <string notr="true">color: red</string>
+            </property>
+            <property name="text">
+             <string>第三</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="rank_neg_3">
+            <property name="styleSheet">
+             <string notr="true">color: green</string>
+            </property>
+            <property name="text">
+             <string>倒数第三</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="rank_neg_2">
+            <property name="styleSheet">
+             <string notr="true">color: green</string>
+            </property>
+            <property name="text">
+             <string>倒数第二</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="rank_neg_1">
+            <property name="styleSheet">
+             <string notr="true">color: green</string>
+            </property>
+            <property name="text">
+             <string>倒数第一</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_14"/>
+        </item>
+        <item>
+         <widget class="QTableWidget" name="table_value"/>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_11">
+          <item>
+           <spacer name="horizontalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_6">
+            <property name="text">
+             <string>贡献率分布</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_4">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QGraphicsView" name="graph_value"/>
+        </item>
+       </layout>
+      </item>
+     </layout>
     </item>
     <item>
-     <widget class="QPushButton" name="download_button">
-      <property name="text">
-       <string>下载excel</string>
-      </property>
-     </widget>
+     <layout class="QHBoxLayout" name="horizontalLayout_9">
+      <item>
+       <widget class="QPushButton" name="download_table_button">
+        <property name="text">
+         <string>下载excel</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
+ <tabstops>
+  <tabstop>alpha_slider</tabstop>
+  <tabstop>graph_value</tabstop>
+  <tabstop>table_value</tabstop>
+  <tabstop>upload_table_button</tabstop>
+  <tabstop>download_table_button</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

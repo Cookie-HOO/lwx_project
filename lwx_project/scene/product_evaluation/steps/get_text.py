@@ -1,7 +1,7 @@
 import pandas as pd
 
 from lwx_project.scene.product_evaluation.const import *
-from lwx_project.utils.calculator import num_or_na_or_zero, my_round
+from lwx_project.utils.calculator import num_or_na_or_zero
 from lwx_project.utils.time_obj import TimeObj
 
 
@@ -32,7 +32,6 @@ def groupby_company(df_company):
 
     today = TimeObj()
     text = TEXT_SUMMARY.format(
-        year_num=today.year if today.season != 1 else today.year - 1,
         until_last_season=today.until_last_season,
         company_name=company_name,
         company_abbr=company_abbr,
@@ -61,5 +60,7 @@ def main(df):
     df_count = df_count[["公司全称", "银保产品银保小计", "私行产品私行小计", "团险", "公司小计"]]
 
     df_merge = df_for_text.merge(df_count, how="left", left_on="保险公司", right_on="公司全称")
-    return df_merge.groupby("保险公司").apply(groupby_company)
+
+    # 这里应该用 groupby后的agg的自定义函数，参考「get_value」步骤
+    return df_merge.groupby("实际简称", as_index=False).apply(groupby_company).rename(columns={None: "评价"})
 

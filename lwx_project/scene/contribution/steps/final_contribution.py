@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+from lwx_project.utils.calculator import float2int
+
 
 def main(df, alpha):
     # 1. 增加同比
@@ -10,20 +12,25 @@ def main(df, alpha):
 
     # 2. 计算贡献率
     df["贡献率"] = df["存量贡献率"] * alpha + df["增量贡献率"] * (1 - alpha)
-    df["贡献率"] = df["贡献率"] / df["贡献率"].sum()
+    # df["贡献率"] = df["贡献率"] / df["贡献率"].sum()
     df = df.sort_values(by=['贡献率'], ascending=False)
+    df["__贡献率"] = df["贡献率"]
 
     # 3. 增加合计
-    summary_cur = df["期缴保费"].sum()
-    summary_last = df["去年期缴保费"].sum()
+    summary_cur = df["期缴保费"].sum() - df["期缴保费"].mean()
+    summary_last = df["去年期缴保费"].sum() - df["去年期缴保费"].mean()
     summary_increase = (summary_cur - summary_last) / summary_last
     summary = pd.DataFrame({
         '公司': ["合计"],
         '期缴保费': [summary_cur],
         '去年期缴保费': [summary_last],
-        '增量': [df["增量"].sum()],
-        '贡献率': [str(round(df["贡献率"].sum() * 100, 1)) + '%'],
         '同比': [str(round(summary_increase * 100, 1)) + '%'],
+        '增量': [summary_cur - summary_last],
+        # '贡献率': [str(round(df["贡献率"].sum() * 100, 1)) + '%'],
+        # "__贡献率": [df["__贡献率"].sum()],
+
+        '贡献率': [''],
+        "__贡献率": [0]
     })
 
     # 4. % 处理
@@ -34,9 +41,10 @@ def main(df, alpha):
     df.replace('0.0%', 0, inplace=True)
 
     # 5. 整理结果
-    df = df.append(summary, ignore_index=True)
-    df["期缴保费"] = df["期缴保费"].apply(lambda x: round(x))
-    df["去年期缴保费"] = df["去年期缴保费"].apply(lambda x: round(x))
-    df["增量"] = df["增量"].apply(lambda x: round(x))
+    df = df[["公司", "期缴保费", "去年期缴保费", "同比", "增量", "贡献率", "__贡献率"]]
+    df = pd.concat([df, summary], axis=0, ignore_index=True)
+    df["期缴保费"] = df["期缴保费"].apply(lambda x: float2int(x))
+    df["去年期缴保费"] = df["去年期缴保费"].apply(lambda x: float2int(x))
+    df["增量"] = df["增量"].apply(lambda x: float2int(x))
 
-    return df[["公司", "期缴保费", "去年期缴保费", "同比", "增量", "贡献率"]]
+    return df

@@ -1,7 +1,7 @@
 import shutil
 
 from lwx_project.scene.product_evaluation.const import *
-from lwx_project.scene.product_evaluation.steps import data_preprocess, get_text, get_value
+from lwx_project.scene.product_evaluation.steps import data_preprocess, get_text, get_value, split_sheet
 from lwx_project.utils.files import copy_file
 
 
@@ -20,9 +20,9 @@ def main():
 
     # 3. 执行步骤
     df = data_preprocess.main()
-    # get_text.main(df)
-
-    get_value.main(df)
+    df_text = get_text.main(df)
+    df_value = get_value.main(df)
+    split_sheet.main(df_text, df_value)
 
 
 if __name__ == '__main__':

@@ -41,6 +41,14 @@ def main():
 def main_with_args(df, alpha):
     df.columns = [i.replace("\n", "") for i in df.columns]
     # df.drop(df.index[-1], inplace=True)
+    df = df[["公司", "期缴保费", "去年期缴保费"]]
+
+    df_mean = pd.DataFrame({
+        '公司': ["均值公司"],
+        '期缴保费': [df["期缴保费"].mean()],
+        '去年期缴保费': [df["去年期缴保费"].mean()],
+    })
+    df = pd.concat([df_mean, df], axis=0, ignore_index=True)
     # 1. 计算增量贡献率
     df = incremental_contribution.main(df)
 

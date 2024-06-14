@@ -4,6 +4,7 @@ import pandas as pd
 
 from lwx_project.scene.product_evaluation.const import *
 from lwx_project.utils.string import replace_parentheses_and_comma
+from lwx_project.utils.time_obj import TimeObj
 
 
 def get_baoxian_type(df, all_baoxian_product):
@@ -19,6 +20,7 @@ def get_baoxian_type(df, all_baoxian_product):
         return "无保费"
     return "有保费"
 
+
 def delete_term_notin_parentheses(text, pattern):
     """删除不在小括号中的特定pattern，即第一个出现此pattern之前的左右小括号的数量一致
     :param text: 全都统一为了中文括号
@@ -33,11 +35,14 @@ def delete_term_notin_parentheses(text, pattern):
         return delete_term_notin_parentheses(text, pattern)
     return text
 
-def math_term_num(raw_xianzhong_name, abbr_2, abbr_4, yinbao_and_sihang):
+
+def match_term_num(raw_xianzhong_name, baoxian_type, abbr_2, abbr_4, yinbao_and_sihang):
     """
     abbr_2: 两个字的简称
     abbr_4: 四个字的简称
     匹配期数
+    0. 如果保险类型不是 有保费
+        返回 空字符串
     1. 严格
         删除以下内容后完全一致，完全一致
             删除中英文小括号
@@ -62,6 +67,9 @@ def math_term_num(raw_xianzhong_name, abbr_2, abbr_4, yinbao_and_sihang):
         TODO：需要交给用户判断（在client中）
 
     """
+    # 0. 只有有报费的参与
+    if baoxian_type != "有保费":
+        return ""
     # 1. 严格匹配
     df_strip = yinbao_and_sihang[["产品名称", "期数"]]
     df_strip["产品名称"] = yinbao_and_sihang["产品名称"].apply(replace_parentheses_and_comma)
@@ -119,13 +127,30 @@ def main(df):
         "本期实现保费": "保费",
     })
 
-    # 2.存储有保费、无保费、团险三种类型
+    # 2. 对险种名称groupby
+    # 保险公司	险种名称	{期数}	保费	{其中：一、二季度保费}	险种代码	保险责任分类	保险责任子分类	保险期限	缴费期间	总笔数	犹撤保费	退保保费	本期实现手续费收入
+    df_for_value_group = df_for_value.groupby("险种名称", as_index=False).agg({
+        "保险公司": "first",
+        "保费": "sum",
+        "险种代码": "first",
+        "保险责任分类": "first",
+        "保险责任子分类": "first",
+        "保险期限": "first",
+        "缴费期间": "first",
+        "总笔数": "sum",
+        "犹撤保费": "sum",
+        "退保保费": "sum",
+        "本期实现手续费收入": "sum",
+        "产品目录统计": "first"  # 用于匹配公司简称使用，不体现在最终结果中
+    })
+
+    # 3.存储有保费、无保费、团险三种类型
     all_tuanxian_product_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="团险", skiprows=1)
     all_tuanxian_product = all_tuanxian_product_df["产品名称"].dropna().values
-    df_for_value["__保险类型"] = df_for_value.apply(lambda x: get_baoxian_type(x, all_tuanxian_product), axis=1)
+    df_for_value_group["__保险类型"] = df_for_value_group.apply(lambda x: get_baoxian_type(x, all_tuanxian_product), axis=1)
 
-    # 3. 寻找期数（只有有保费的需要找期数）
-    df_for_value["期数"] = ""
+    # 4. 寻找期数（只有有保费的需要找期数）
+    df_for_value_group["期数"] = ""
     yinbao_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="银保", skiprows=1)
     sihang_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="私行", skiprows=1)
     yinbao_and_sihang = pd.concat(
@@ -136,9 +161,33 @@ def main(df):
         axis=0
     )
     yinbao_and_sihang["期数"] = yinbao_and_sihang["期数"].apply(lambda x: x.split("\n")[0])
-    has_fee = df_for_value[df_for_value["__保险类型"] == '有保费']
-    has_fee["期数"] = has_fee.apply(lambda x: math_term_num(x["险种名称"], x["产品目录统计"], x["保险公司"], yinbao_and_sihang), axis=1)
+    # todo: 这里可以优化，先找到所有有保费的再参与计算
+    # 参考：df.loc[df['age'] >= 30, 'salary'] = df.loc[df['age'] >= 30, 'salary'].apply(lambda x: x**2)
+    df_for_value_group["期数"] = df_for_value_group.apply(lambda x: match_term_num(x["险种名称"], x["__保险类型"], x["产品目录统计"], x["保险公司"], yinbao_and_sihang), axis=1)
+    # has_fee = df_for_value_group[df_for_value_group["__保险类型"] == '有保费']
+    # has_fee["期数"] = has_fee.apply(lambda x: math_term_num(x["__保险类型"], x["产品目录统计"], x["保险公司"], yinbao_and_sihang), axis=1)
 
-    no = has_fee[has_fee["期数"]=="找不到"]
-    pass
+    no = df_for_value_group[df_for_value_group["期数"] == "找不到"]
+
+    # 5. 上期保费
+    """
+    {其中：一、二季度保费}列
+    名字：看当前日期
+        处在一季度：没有这一列
+        处在二季度：{其中：一季度保费}
+        处在三季度：{其中：一、二季度保费}
+        处在四季度：{其中：一、二、三季度保费}
+    值：
+        在{上期保费.xlsx} 和 {总表1} 中 {险种名称}一样的列，对 {上期保费.xlsx} 中的 {本期实现保费} 求和
+    """
+    today = TimeObj()
+    if today.season == 1:
+        return df_for_value_group
+    before_season_name = FEE_IN_SEASON_BEFORE.get(today.season)
+    last_season_fee = pd.read_excel(LAST_TERM_PATH, skiprows=2)
+    last_season_fee_group = last_season_fee.groupby("险种名称", as_index=False)["本期实现保费"].sum()
+    last_season_fee_group = last_season_fee_group.rename(columns={"本期实现保费": before_season_name})
+
+    df_for_value_group = df_for_value_group.merge(last_season_fee_group, how="left", on="险种名称")
+    return df_for_value_group.fillna(0)
 
