@@ -3,7 +3,7 @@ import shutil
 import pandas as pd
 
 from lwx_project.scene.contribution.const import *
-from lwx_project.utils.files import copy_file
+from lwx_project.utils.file import copy_file
 
 from lwx_project.scene.contribution.steps import incremental_contribution, stock_contribution, final_contribution
 
@@ -39,10 +39,6 @@ def main():
 
 
 def main_with_args(df, alpha):
-    df.columns = [i.replace("\n", "") for i in df.columns]
-    # df.drop(df.index[-1], inplace=True)
-    df = df[["公司", "期缴保费", "去年期缴保费"]]
-
     df_mean = pd.DataFrame({
         '公司': ["均值公司"],
         '期缴保费': [df["期缴保费"].mean()],

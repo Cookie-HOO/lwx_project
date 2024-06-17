@@ -2,7 +2,7 @@ import shutil
 
 from lwx_project.scene.product_evaluation.const import *
 from lwx_project.scene.product_evaluation.steps import data_preprocess, get_text, get_value, split_sheet
-from lwx_project.utils.files import copy_file
+from lwx_project.utils.file import copy_file
 
 
 def main():

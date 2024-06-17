@@ -1,21 +1,15 @@
-from PyQt5.QtWidgets import QWidget, QLabel
+from PyQt5 import uic
+from PyQt5.QtWidgets import QMainWindow
 
-from lwx_project.client.base import Background
+from lwx_project.client.const import UI_PATH
+from lwx_project.client.scene.contribution_client import MyContributionClient
+from lwx_project.client.scene.daily_report_client import MyDailyReportClient
 
 
-class MyClient(QWidget):
+class MyClient(QMainWindow):
     def __init__(self):
-        super().__init__()
-        self.initUI()
-
-    def initUI(self):
-        self.setGeometry(100, 100, 500, 500)
-        self.setWindowTitle('Demo')
-
-        # 添加背景组件
-        self.background = Background(self)
-        self.background.setGeometry(0, 0, 500, 500)
-
-        # 添加其他组件
-        self.label = QLabel('Hello World!', self)
-        self.label.setGeometry(200, 200, 100, 50)
+        super(MyClient, self).__init__()
+        uic.loadUi(UI_PATH.format(file="main.ui"), self)  # 加载.ui文件
+        self.setWindowTitle("LWX's Workspace")
+        self.main_tab.addTab(MyDailyReportClient(), '日报')
+        self.main_tab.addTab(MyContributionClient(), '贡献率计算')

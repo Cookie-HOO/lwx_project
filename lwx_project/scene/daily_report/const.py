@@ -7,14 +7,13 @@ DATA_PATH = os.path.join(ALL_DATA_PATH, "daily_report")
 DATA_IMPORTANT_PATH = os.path.join(DATA_PATH, "important")
 # Data路径：tmp
 DATA_TMP_PATH = os.path.join(DATA_PATH, "tmp")
+DAILY_REPORT_SOURCE_TEMPLATE_PATH = os.path.join(DATA_IMPORTANT_PATH, "每日报表汇总.xlsm")
 DAILY_REPORT_TEMPLATE_PATH = os.path.join(DATA_TMP_PATH, "每日报表汇总.xlsm")
-CHEER_UP_TEXT_PATH = os.path.join(DATA_TMP_PATH, "cheer_up.txt")
+LEADER_WORD_TEMPLATE_PATH = os.path.join(DATA_IMPORTANT_PATH, "leader_word_template.txt")
+MOTTO_TEXT_PATH = os.path.join(DATA_IMPORTANT_PATH, "motto.txt")
 
-# Data路径：resultc
+# Data路径：result
 DATA_RESULT_PATH = os.path.join(DATA_PATH, "result")
 
 # 宏名称
 EXCEL_MARCOS = ["每日报表汇总.xlsm!粘贴", "每日报表汇总.xlsm!补充"]
-
-# 文案
-TEXT_CHEER_UP = """[太阳][太阳][太阳]{text_cheer_up}。{season_char}季度代理农银人寿期缴计划及{month_num}月计划已经下发，望各分行全力推进{season_char}季度业务进度，积极部署多项措施，严格把控业务品质，切实减少犹豫期撤单情况的发生，补缺口，追进度，推动业务平台持续提升，加油[拳头][拳头][拳头]"""

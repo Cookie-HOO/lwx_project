@@ -1,8 +1,9 @@
 贡献率计算场景
-    1. table的自适应
-    2. 自定义一个round
+    [done] 1. table的自适应
+    [done] 2. 自定义一个round
     3. 图标问题
     4. 背景图片问题
+    [done] 上传文件有问题时，提示问题内容
 
     table组件中绑定上传按钮和下载按钮
     class TableWidget:
@@ -14,7 +15,7 @@
             pass
         def get_df(self, df):
             pass
-    构造一个均值公司的数据
+    [done] 构造一个均值公司的数据
         贡献率应该是0
         设置背景颜色
-    补一个贡献率的直方图
+    [done] 补一个贡献率的直方图

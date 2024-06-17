@@ -5,13 +5,11 @@ import typing
 import pandas as pd
 
 from lwx_project.scene.daily_report.const import *
-from lwx_project.utils.files import copy_file
+from lwx_project.utils.file import copy_file
 from lwx_project.utils.time_obj import TimeObj
 
-date_equal_buffer = 0
 
-
-def new_name_time(title, text_parts, old_name) -> typing.List[str]:
+def new_name_time(title, text_parts, old_name, date_equal_buffer) -> typing.List[str]:
     # 当年 or 当季 or 当月 or 当日
     new_name_time_list = []
     if len(text_parts) > 0:
@@ -59,38 +57,52 @@ def new_name_position(title, text_parts):
     return ""
 
 
-def get_new_name(df, old_name) -> typing.List[str]:
-    title = df.iloc[0, 0]
+def get_key_text_parts(df):
+    """获取一个df的关键文本
+    :param df:
+    :return:
+    """
     text = df.iloc[1, 0]  # 第二行第一个
     res = re.split("\s{3,}", text)
     res = [i.replace(":", "：") for i in res]
-    if len(res) >= 2:
-        if res[1] == '公司：农银人寿保险股份有限公司':
+    return res
+
+
+def get_new_name(df, old_name, date_equal_buffer) -> typing.List[str]:
+    title = df.iloc[0, 0]
+    key_text_parts = get_key_text_parts(df)
+    if len(key_text_parts) >= 2:
+        if key_text_parts[1] == '公司：农银人寿保险股份有限公司':
             return [old_name]
 
+    new_name_template = (f"{new_name_index(title, key_text_parts)}"  # 第一部分是index
+                         f"{{new_time}}"  # 第二部分是时间
+                         f"{new_name_position(title, key_text_parts)}"  # 第三部分是机构｜农 | 公司
+                         f".xlsx")
+
     return [
-        new_name_index(title, res) + i + new_name_position(title, res) + ".xlsx" for i in new_name_time(title, res, old_name)
+        new_name_template.format(new_time=new_time) for new_time in new_name_time(title, key_text_parts, old_name, date_equal_buffer)
     ]
 
 
-def main():
-    global date_equal_buffer
-    # 1. 定义计算日期相等的buffer
-    date_equal_buffer = int(input("定义计算日期相等的buffer: "))
-
-    # 2. 找到所有需要重命名的文件
-    excels = os.listdir(DATA_PATH)
+def main(upload_excels_path=None, date_equal_buffer=0):
+    name_dict = {}
+    excels = upload_excels_path or os.listdir(DATA_PATH)
     for excel in excels:
         if not excel.startswith("~") and excel.endswith(".xlsx"):
-            old_excel_path = os.path.join(DATA_PATH, excel)
+            old_excel_path = excel if upload_excels_path else os.path.join(DATA_PATH, excel)
             try:
                 df = pd.read_excel(old_excel_path, header=None, engine='openpyxl')
             except Exception as e:
                 print(f"error when loads: {old_excel_path}, {e}")
-            new_name_list: typing.List[str] = get_new_name(df, excel)
+                return
+            new_name_list: typing.List[str] = get_new_name(df, excel, date_equal_buffer)
             for new_name in new_name_list:
                 copy_file(old_excel_path, os.path.join(DATA_TMP_PATH, new_name))
+                name_dict[new_name] = get_key_text_parts(df)[0]
+    return name_dict
 
 
 if __name__ == '__main__':
-    main()
+    res = main(date_equal_buffer=0)
+    print(res)

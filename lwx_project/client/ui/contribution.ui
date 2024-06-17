@@ -97,6 +97,110 @@
      </layout>
     </item>
     <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QLabel" name="rank_1">
+        <property name="styleSheet">
+         <string notr="true">color: red</string>
+        </property>
+        <property name="text">
+         <string>第一</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="rank_2">
+        <property name="styleSheet">
+         <string notr="true">color: red</string>
+        </property>
+        <property name="text">
+         <string>第二</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="rank_3">
+        <property name="styleSheet">
+         <string notr="true">color: red</string>
+        </property>
+        <property name="text">
+         <string>第三</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="rank_4">
+        <property name="styleSheet">
+         <string notr="true">color: red</string>
+        </property>
+        <property name="text">
+         <string>第四</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="rank_5">
+        <property name="styleSheet">
+         <string notr="true">color: red</string>
+        </property>
+        <property name="text">
+         <string>第五</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="rank_neg_5">
+        <property name="styleSheet">
+         <string notr="true">color: green</string>
+        </property>
+        <property name="text">
+         <string>倒数第五</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="rank_neg_4">
+        <property name="styleSheet">
+         <string notr="true">color: green</string>
+        </property>
+        <property name="text">
+         <string>倒数第四</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="rank_neg_3">
+        <property name="styleSheet">
+         <string notr="true">color: green</string>
+        </property>
+        <property name="text">
+         <string>倒数第三</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="rank_neg_2">
+        <property name="styleSheet">
+         <string notr="true">color: green</string>
+        </property>
+        <property name="text">
+         <string>倒数第二</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="rank_neg_1">
+        <property name="styleSheet">
+         <string notr="true">color: green</string>
+        </property>
+        <property name="text">
+         <string>倒数第一</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
      <layout class="QHBoxLayout" name="horizontalLayout_15">
       <item>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -136,73 +240,6 @@
            </spacer>
           </item>
          </layout>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_13">
-          <item>
-           <widget class="QLabel" name="rank_1">
-            <property name="styleSheet">
-             <string notr="true">color: red</string>
-            </property>
-            <property name="text">
-             <string>第一</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="rank_2">
-            <property name="styleSheet">
-             <string notr="true">color: red</string>
-            </property>
-            <property name="text">
-             <string>第二</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="rank_3">
-            <property name="styleSheet">
-             <string notr="true">color: red</string>
-            </property>
-            <property name="text">
-             <string>第三</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="rank_neg_3">
-            <property name="styleSheet">
-             <string notr="true">color: green</string>
-            </property>
-            <property name="text">
-             <string>倒数第三</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="rank_neg_2">
-            <property name="styleSheet">
-             <string notr="true">color: green</string>
-            </property>
-            <property name="text">
-             <string>倒数第二</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="rank_neg_1">
-            <property name="styleSheet">
-             <string notr="true">color: green</string>
-            </property>
-            <property name="text">
-             <string>倒数第一</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_14"/>
         </item>
         <item>
          <widget class="QTableWidget" name="table_value"/>
@@ -268,7 +305,6 @@
     </item>
    </layout>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <tabstops>
   <tabstop>alpha_slider</tabstop>

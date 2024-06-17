@@ -1,16 +1,37 @@
 import math
-import os.path
 
 import pandas as pd
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon, QPen, QColor
-from PyQt5.QtWidgets import QApplication, QFileDialog, QMainWindow, QTableWidgetItem, QGraphicsScene
+from PyQt5.QtGui import QPen, QColor
+from PyQt5.QtWidgets import QFileDialog, QMainWindow, QGraphicsScene, QMessageBox
 
 from lwx_project.client.const import UI_PATH
 from lwx_project.client.utils import table_widget
-from lwx_project.const import PROJECT_PATH
 from lwx_project.scene import contribution
+
+"""
+贡献度计算
+
+输入：
+    一张excel表，要求第一个sheet
+        1. 第二行是列名：公司、期缴保费、去年期缴保费 三列
+        2. 最后一行是总计
+    动态调整的alpha值
+
+输出
+    1. excel增加三列：同比、增量、贡献率
+    2. 贡献率的分布图
+
+
+贡献率计算规则
+    1. 增量贡献率
+        各公司的增量：即 （期缴保费 - 去年期缴保费）的均值的贡献程度
+    2. 存量贡献率
+        各公司的 期缴保费，对期缴保费均值的贡献程度
+    3. 贡献率：
+        alpha * 存量贡献率  + (1-alpha) * 增量贡献率
+"""
 
 
 def style_func(df, i, j):
@@ -24,9 +45,9 @@ def style_func(df, i, j):
         return QColor(199, 242, 174)
 
 
-class MyClient(QMainWindow):
+class MyContributionClient(QMainWindow):
     def __init__(self):
-        super(MyClient, self).__init__()
+        super(MyContributionClient, self).__init__()
         uic.loadUi(UI_PATH.format(file="contribution.ui"), self)  # 加载.ui文件
         self.setWindowTitle("期缴保费贡献率计算器——By LWX")
         self.df = None
@@ -43,7 +64,15 @@ class MyClient(QMainWindow):
         if not fileName:
             return
         df = pd.read_excel(fileName, skiprows=1)
-        self.df = df.drop(df.index[-1])  # 取消最后一行总计
+        df = df.drop(df.index[-1])  # 取消最后一行总计
+        df.columns = [i.replace("\n", "") for i in df.columns]
+        # df.drop(df.index[-1], inplace=True)
+        cols = ["公司", "期缴保费", "去年期缴保费"]
+        for col in cols:
+            if col not in df.columns:
+                QMessageBox.warning(self, "Warning", f"上传的文件缺少：{col}")
+                return
+        self.df = df[cols]
         table_widget.fill_data(self.table_value, self.df)
 
     def download_file(self):
@@ -65,14 +94,22 @@ class MyClient(QMainWindow):
             company_value = df["公司"].tolist()
             contribution_value = df["贡献率"].tolist()
 
-            # 前三和倒三
-            self.rank_1.setText(f'{company_value[0]}: {contribution_value[0]}')
-            self.rank_2.setText(f'{company_value[1]}: {contribution_value[1]}')
-            self.rank_3.setText(f'{company_value[2]}: {contribution_value[2]}')
-
-            self.rank_neg_1.setText(f'{company_value[-2]}: {contribution_value[-2]}')
-            self.rank_neg_2.setText(f'{company_value[-3]}: {contribution_value[-3]}')
-            self.rank_neg_3.setText(f'{company_value[-4]}: {contribution_value[-4]}')
+            # 前五和倒五
+            if len(company_value) > 1:
+                self.rank_1.setText(f'{company_value[0]}: {contribution_value[0]}')
+                self.rank_neg_1.setText(f'{company_value[-2]}: {contribution_value[-2]}')
+            if len(company_value) > 2:
+                self.rank_2.setText(f'{company_value[1]}: {contribution_value[1]}')
+                self.rank_neg_2.setText(f'{company_value[-3]}: {contribution_value[-3]}')
+            if len(company_value) > 3:
+                self.rank_3.setText(f'{company_value[2]}: {contribution_value[2]}')
+                self.rank_neg_3.setText(f'{company_value[-4]}: {contribution_value[-4]}')
+            if len(company_value) > 4:
+                self.rank_4.setText(f'{company_value[3]}: {contribution_value[3]}')
+                self.rank_neg_4.setText(f'{company_value[-5]}: {contribution_value[-5]}')
+            if len(company_value) > 5:
+                self.rank_5.setText(f'{company_value[4]}: {contribution_value[4]}')
+                self.rank_neg_5.setText(f'{company_value[-6]}: {contribution_value[-6]}')
 
             # 画直方图
             self.graph_value.setScene(self.create_scene(df))
