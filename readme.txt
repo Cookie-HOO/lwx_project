@@ -27,7 +27,7 @@
     - 找到根目录的main.spec文件
         pathex=["."],  # 将当前项目根目录添加进去
     - 再次打包
-        pyinstaller .\main.spec --distpath=.
+        pyinstaller .\main_win.spec --distpath=.
 
 2. GUI的选型问题
     tkinter：无法设置透明文字

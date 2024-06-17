@@ -10,7 +10,7 @@ from lwx_project.scene.daily_report.steps import rename, calculate
 from lwx_project.utils.conf import get_txt_conf, set_txt_conf
 from lwx_project.utils.file import get_file_name_without_extension, copy_file
 
-UPLOAD_IMPORTANT_FILES = ["代理期缴保费"]
+UPLOAD_IMPORTANT_FILES = ["代理期缴保费", "公司网点经营情况统计表", "农行渠道实时业绩报表"]
 
 
 class MyDailyReportClient(QMainWindow):

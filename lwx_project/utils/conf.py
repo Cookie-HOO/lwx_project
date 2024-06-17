@@ -1,8 +1,8 @@
-import yaml
 from lwx_project.const import *
 
 
 def get_yaml_conf(scene: str, conf_key=None):
+    import yaml
     conf_path = os.path.join(CONF_PATH, scene+".yaml")
     with open(conf_path) as f:
         result = yaml.safe_load(f.read())
@@ -12,6 +12,7 @@ def get_yaml_conf(scene: str, conf_key=None):
 
 
 def set_yaml_conf(scene: str, conf_key: str, conf_value):
+    import yaml
     conf_path = os.path.join(CONF_PATH, scene+".yaml")
     conf_data = get_yaml_conf(scene)
     conf_data[conf_key] = conf_value
@@ -21,17 +22,17 @@ def set_yaml_conf(scene: str, conf_key: str, conf_value):
 
 def get_txt_conf(path, type_=str):
     if type_ == str:
-        with open(path) as f:
+        with open(path, encoding="utf8") as f:
             result = f.read()
         return result
     elif type_ == list:
-        with open(path) as f:
+        with open(path, encoding="utf8") as f:
             result = [i.strip("\n") for i in f.readlines() if i]
         return result
 
 
 def set_txt_conf(path, value):
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf8") as f:
         f.write(value)
 
 

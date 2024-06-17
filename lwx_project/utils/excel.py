@@ -4,7 +4,7 @@ call_excel_macro = None
 if platform.system() == 'Windows':
     import win32com.client as wc
     def call_excel_macro_win(excel_path, macro_name):
-        xlApp = wc.client.DispatchEx("Excel.Application")
+        xlApp = wc.DispatchEx("Excel.Application")
         xlApp.Visible = True
         xlApp.DisplayAlerts = 0
         xlBook = xlApp.Workbooks.Open(excel_path)
