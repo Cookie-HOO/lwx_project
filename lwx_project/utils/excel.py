@@ -1,31 +1,16 @@
-import platform
-
-call_excel_macro = None
-if platform.system() == 'Windows':
-    import win32com.client as wc
-    def call_excel_macro_win(excel_path, macro_name):
-        xlApp = wc.DispatchEx("Excel.Application")
-        xlApp.Visible = True
-        xlApp.DisplayAlerts = 0
-        xlBook = xlApp.Workbooks.Open(excel_path)
-        xlBook.Application.Run(macro_name)  # 宏
-        xlBook.Close(True)
+import xlwings as xw
 
 
-    call_excel_macro = call_excel_macro_win
-elif platform.system() == 'Darwin':
-    import xlwings as xw
-    def call_excel_macro_mac(excel_path, macro_name):
-        wb = xw.Book(excel_path)
-        wb.macro(macro_name)()
-        # app = wb.app
-        # app.api.Application.Run(macro_name)
-        wb.close()
-
-
-    call_excel_macro = call_excel_macro_mac
-
-
-
-
-
+def call_excel_macro(excel_path, macro_names, run_mute):
+    # 打开Excel
+    app = xw.App(visible=not run_mute, add_book=False)
+    # 打开含有宏的工作簿
+    workbook = app.books.open(excel_path)
+    # 运行宏
+    for macro_name in macro_names:
+        app.api.Application.Run(macro_name)
+    # 关闭工作簿
+    workbook.save()
+    workbook.close()
+    # 关闭Excel
+    app.quit()

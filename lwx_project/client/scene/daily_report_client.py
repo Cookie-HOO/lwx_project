@@ -1,3 +1,4 @@
+import os.path
 import random
 
 from PyQt5 import uic
@@ -9,8 +10,10 @@ from lwx_project.scene.daily_report.main import before_run, after_run
 from lwx_project.scene.daily_report.steps import rename, calculate
 from lwx_project.utils.conf import get_txt_conf, set_txt_conf
 from lwx_project.utils.file import get_file_name_without_extension, copy_file
+from lwx_project.utils.time_obj import TimeObj
 
-UPLOAD_IMPORTANT_FILES = ["代理期缴保费", "公司网点经营情况统计表", "农行渠道实时业绩报表"]
+UPLOAD_REQUIRED_FILES = ["代理期缴保费", "公司网点经营情况统计表", "农行渠道实时业绩报表"]  # 上传的文件必须要有
+UPLOAD_IMPORTANT_FILE = "每日报表汇总"  # 如果有会放到tmp路径下
 
 
 class MyDailyReportClient(QMainWindow):
@@ -26,6 +29,7 @@ class MyDailyReportClient(QMainWindow):
         upload_file_button: 上传文件的按钮，上传文件后，将文件名和对应的时间展示在 file_date_value 这里
         equal_buffer_value: 判断当日相等的buffer
         do_button: 点击后进行执行
+        run_mute_checkbox: 静默执行的checkbox
 
         file_date_value: 上传文件后显示文件名和对应的日期，点击执行后，这里替换成改完名字的内容和日期
         leader_word_value: 展示填充完名言警句的给领导的话，其中名言警句单独一行，可以被 motto_change_button 修改
@@ -38,7 +42,7 @@ class MyDailyReportClient(QMainWindow):
         super(MyDailyReportClient, self).__init__()
         uic.loadUi(UI_PATH.format(file="daily_report.ui"), self)  # 加载.ui文件
         self.setWindowTitle("日报——By LWX")
-        self.repaint_func = lambda: ...
+        self.done = False
 
         # 读取系统配置文件
         self.init_file_config()  # 填充file_config到界面
@@ -55,9 +59,8 @@ class MyDailyReportClient(QMainWindow):
         self.upload_file_button.clicked.connect(self.upload_file)  # 将按钮的点击事件连接到upload_file方法
         ## 2.2 执行按钮绑定
         self.new_file_name2date_dict = {}
-        self.before_text = None
-        self.after_text = None
-        self.motto_list = None
+        self.num_text = ""
+        self.leader_word_variables = {}
         self.result_df_path = None
         self.do_button.clicked.connect(self.do)
         ## 2.3 随机生成名言警句按钮绑定
@@ -81,37 +84,53 @@ class MyDailyReportClient(QMainWindow):
         self.motto_list_value.setText(get_txt_conf(MOTTO_TEXT_PATH, str))
 
     def save_config(self, path, value):
+        """保存配置
+        :param path:
+        :param value:
+        :return:
+        """
         set_txt_conf(path, value)
         QMessageBox.information(self, 'Success', '保存成功')
 
     def upload_file(self):
+        """上传文件
+        :return:
+        """
         options = QFileDialog.Options()
         file_names, _ = QFileDialog.getOpenFileNames(self, "QFileDialog.getOpenFileName()", "", "Excel Files (*.xls*)", options=options)
         if not file_names:
             return
         base_names = [get_file_name_without_extension(file_name) for file_name in file_names]
-        for upload_important_file in UPLOAD_IMPORTANT_FILES:
+        for upload_important_file in UPLOAD_REQUIRED_FILES:
             if upload_important_file not in base_names:
                 QMessageBox.warning(self, "Warning", f"请包含{upload_important_file}文件")
                 return
         for base_name in base_names:
             self.file_date_value.addItem(base_name)
 
-        self.important_file_names = [file_name for file_name in file_names if get_file_name_without_extension(file_name) in UPLOAD_IMPORTANT_FILES]
-        self.date_file_names = [file_name for file_name in file_names if get_file_name_without_extension(file_name) not in UPLOAD_IMPORTANT_FILES]
+        important_files = UPLOAD_REQUIRED_FILES + [UPLOAD_IMPORTANT_FILE]
+        self.important_file_names = [file_name for file_name in file_names if get_file_name_without_extension(file_name) in important_files]
+        self.date_file_names = [file_name for file_name in file_names if get_file_name_without_extension(file_name) not in important_files]
 
     def download_file(self):
+        """下载结果文件
+        :return:
+        """
         # 弹出一个文件保存对话框，获取用户选择的文件路径
-        if not self.result_df_path:
+        if not os.path.exists(DAILY_REPORT_RESULT_TEMPLATE_PATH):
             QMessageBox.warning(self, "Warning", f"请先执行")
             return
         options = QFileDialog.Options()
-        filePath, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()", "每日报表汇总.xlsx","All Files (*);;Text Files (*.txt)", options=options)
+        filePath, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()", f"{TimeObj().time_str}_每日报表汇总.xlsx","All Files (*);;Text Files (*.txt)", options=options)
         if filePath:
-            copy_file(self.result_df_path, filePath)
+            copy_file(DAILY_REPORT_RESULT_TEMPLATE_PATH, filePath)
 
     def do(self):
+        """核心执行函数
+        :return:
+        """
         before_run()  # 清理路径
+        self.leader_word_value.clear()
 
         # 第一步：重命名后显示修改的内容
         equal_buffer_value = self.equal_buffer_value.value()
@@ -125,45 +144,51 @@ class MyDailyReportClient(QMainWindow):
             for key, value in self.new_file_name2date_dict.items():
                 self.file_date_value.addItem(f'{key}: {value}')
         # 第二步：执行宏
-        result = calculate.main(copy2tmp_path_list=self.important_file_names, save_result=False)
+        result = calculate.main(
+            copy2tmp_path_list=self.important_file_names,
+            run_mute=self.run_mute_checkbox.isChecked()
+        )
         """
         {
             "num_text": text,
-            "leader_word_template_text": leader_word_template_text,
             "leader_word_variables": leader_word_variables,
-                motto=text_motto, season_char=today.season_in_char, month_num=today.month, all_motto_text=all_motto_text    
+                motto=text_motto, season_char=today.season_in_char, month_num=today.month
             "result_df_path": DAILY_REPORT_TEMPLATE_PATH,
         }
         """
-        num_text = result["num_text"]
-        leader_word_template_text = result["leader_word_template_text"]
-        self.result_df_path = result["result_df_path"]
-
-        before, after = leader_word_template_text.split("{motto}")
-
-        leader_word_variables = result["leader_word_variables"]
-
-        self.before_text = num_text + before.format(**leader_word_variables)
-        self.after_text = after.format(**leader_word_variables)
-        self.motto_list = leader_word_variables["all_motto_text"]
-
-        self.leader_word_value.append(self.before_text)
-        self.leader_word_value.insertHtml(f'<font color="red">{leader_word_variables.get("motto")}</font>')
-        self.leader_word_value.insertHtml(f'<font color="black">{self.after_text}</font>')
-
-        # # 第三步：清理
-        # after_run()
+        self.num_text = result["num_text"]
+        self.leader_word_variables = result["leader_word_variables"]
+        self.set_random_leader_word()
+        self.done = True
+        # 第三步：清理
+        after_run()
 
     def copy_leader_word(self):
+        """拷贝领导的话
+        :return:
+        """
         text = self.leader_word_value.toPlainText()
         QApplication.clipboard().setText(text)
 
+    def set_random_leader_word(self):
+        """设置领导的话
+        :return:
+        """
+        self.leader_word_value.clear()
+        before, after = get_txt_conf(LEADER_WORD_TEMPLATE_PATH, str).split("{motto}")
+        motto = random.choice(get_txt_conf(MOTTO_TEXT_PATH, list))
+        before_text = self.num_text + before.format(**self.leader_word_variables)
+        after_text = after.format(**self.leader_word_variables)
+
+        self.leader_word_value.append(before_text)
+        self.leader_word_value.insertHtml(f'<font color="red">{motto}</font>')
+        self.leader_word_value.insertHtml(f'<font color="black">{after_text}</font>')
+
     def motto_change(self):
-        if self.motto_list is None:
+        """名言警句change
+        :return:
+        """
+        if not self.done:
             QMessageBox.warning(self, "Warning", f"请先执行")
             return
-        m = random.choice(self.motto_list)
-        self.leader_word_value.clear()
-        self.leader_word_value.append(self.before_text)
-        self.leader_word_value.insertHtml(f'<font color="red">{m}</font>')
-        self.leader_word_value.insertHtml(f'<font color="black">{self.after_text}</font>')
+        self.set_random_leader_word()

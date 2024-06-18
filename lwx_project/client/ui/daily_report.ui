@@ -90,6 +90,16 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QCheckBox" name="run_mute_checkbox">
+        <property name="text">
+         <string>静默</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
      </layout>
     </item>
     <item>

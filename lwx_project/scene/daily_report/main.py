@@ -21,7 +21,7 @@ def before_run():
 def after_run():
     # 1. 删除路径
     shutil.rmtree(DATA_TMP_PATH, ignore_errors=True)
-    shutil.rmtree(DATA_RESULT_PATH, ignore_errors=True)
+    # shutil.rmtree(DATA_RESULT_PATH, ignore_errors=True)
 
 
 def main():
