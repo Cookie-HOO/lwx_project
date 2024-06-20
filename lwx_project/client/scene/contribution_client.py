@@ -6,9 +6,10 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPen, QColor
 from PyQt5.QtWidgets import QFileDialog, QMainWindow, QGraphicsScene, QMessageBox
 
-from lwx_project.client.const import UI_PATH
+from lwx_project.client.const import UI_PATH, COLOR_WHITE, COLOR_RED, COLOR_GREEN
 from lwx_project.client.utils import table_widget
 from lwx_project.scene import contribution
+from lwx_project.utils.logger import logger_sys_error
 
 """
 贡献度计算
@@ -38,11 +39,11 @@ def style_func(df, i, j):
     contribution_value = df["贡献率"][i]
     contribution_value = float(str(contribution_value).strip("%") or 0)
     if math.isclose(contribution_value, 0) or len(df) == i+1:
-        return QColor(255, 255, 255)
+        return QColor(*COLOR_WHITE)
     elif contribution_value > 0:
-        return QColor(245, 184, 184)
+        return QColor(*COLOR_RED)
     elif contribution_value < 0:
-        return QColor(199, 242, 174)
+        return QColor(*COLOR_GREEN)
 
 
 class MyContributionClient(QMainWindow):
@@ -84,6 +85,7 @@ class MyContributionClient(QMainWindow):
             # 将数据转换为DataFrame
             df.to_excel(filePath, index=False)
 
+    @logger_sys_error
     def alpha_changed(self, value):
         alpha = value / 100
         self.alpha_value.setText(str(alpha))

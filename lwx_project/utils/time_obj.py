@@ -1,15 +1,19 @@
 import datetime
 import math
 
+from lwx_project.const import FULL_TIME_FORMATTER, DATE_FORMATTER, TIME_FORMATTER
+
 
 class TimeObj:
     def __init__(self, raw_time_str=None, equal_buffer=0):
-        self.raw_time_str = raw_time_str or datetime.date.today().strftime("%Y-%m-%d")
-        self.today = datetime.date.today()
+        self.raw_time_str = raw_time_str
+        self.today = datetime.datetime.today()
         self.equal_buffer = equal_buffer
 
     @property
-    def time_str(self):
+    def date_str(self):
+        if not self.raw_time_str:
+            return self.today.strftime(DATE_FORMATTER)
         time_str_ = self.raw_time_str
         if self.raw_time_str.isdigit() and len(self.raw_time_str) == 8:
             time_str_ = self.raw_time_str[:4] + "-" + self.raw_time_str[4:6] + "-" + self.raw_time_str[6:]
@@ -18,8 +22,22 @@ class TimeObj:
         return time_str_
 
     @property
+    def full_time_str(self):
+        if not self.raw_time_str:
+            return self.today.strftime(FULL_TIME_FORMATTER)
+        return self.time_obj.strftime(FULL_TIME_FORMATTER)
+
+    @property
+    def time_str(self):
+        if not self.raw_time_str:
+            return self.today.strftime(TIME_FORMATTER)
+        return self.time_obj.strftime(TIME_FORMATTER)
+
+    @property
     def time_obj(self):
-        return datetime.datetime.strptime(self.time_str, "%Y-%m-%d")
+        if not self.raw_time_str:
+            return self.today
+        return datetime.datetime.strptime(self.date_str, DATE_FORMATTER)
 
     def __eq__(self, other):
         return abs((self.time_obj - other.time_obj).days) <= self.equal_buffer
@@ -32,10 +50,10 @@ class TimeObj:
 
     @property
     def month_day(self):
-        time_str = self.time_str
-        if not time_str:
+        date_str = self.date_str
+        if not date_str:
             return ""
-        return "-".join(time_str.split("-")[-2:])
+        return "-".join(date_str.split("-")[-2:])
 
     @property
     def year(self) -> int:

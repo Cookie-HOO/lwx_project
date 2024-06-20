@@ -6,3 +6,7 @@ WINDOW_TITLE = "李文萱工作空间"
 STATIC_FILE_PATH = os.path.join(STATIC_PATH, "{file}")
 UI_PATH = os.path.join(ROOT_IN_EXE_PATH, 'ui', "{file}") if is_prod else os.path.join(os.path.dirname(__file__), "ui", "{file}")
 
+# color
+COLOR_WHITE = (255, 255, 255)
+COLOR_RED = (245, 184, 184)
+COLOR_GREEN = (199, 242, 174)

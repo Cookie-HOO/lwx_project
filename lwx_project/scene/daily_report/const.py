@@ -17,11 +17,12 @@ LEADER_WORD_TEMPLATE_PATH = os.path.join(DATA_IMPORTANT_PATH, "leader_word_templ
 MOTTO_TEXT_PATH = os.path.join(DATA_IMPORTANT_PATH, "motto.txt")
 
 # 结果集
-RESULT_SET = {
+KEY_RESULT_FILE_SET = {
     "代理期缴保费.xlsm", "公司网点经营情况统计表.xlsx", "农行渠道实时业绩报表.xlsx", "业绩报表.xlsx",
-    "当年农", "当季农", "当月农", "当日农", "当年全", "当日全", "26当日全", "26当年全", "当日公司", "当年公司", "23当日活动率", "23当月活动率"
+    "当年农.xlsx", "当季农.xlsx", "当月农.xlsx", "当日农.xlsx", "当年全.xlsx", "当日全.xlsx", "26当日全.xlsx", "26当年全.xlsx", "当日公司.xlsx", "当年公司.xlsx", "23当日活动率.xlsx", "23当月活动率.xlsx",
+    "每日报表汇总.xlsm"
 }
-# 宏名称
+# 无参调用宏名称
 EXCEL_MARCOS = ["每日报表汇总.xlsm!粘贴", "每日报表汇总.xlsm!补充", ]
 
 EXCEL_PIC_MARCO = "每日报表汇总.xlsm!生成图片"

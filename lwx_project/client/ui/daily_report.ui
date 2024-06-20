@@ -22,7 +22,7 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_6">
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout">
+     <layout class="QHBoxLayout" name="horizontalLayout_4">
       <item>
        <widget class="QPushButton" name="config_button">
         <property name="enabled">
@@ -67,6 +67,30 @@
        </spacer>
       </item>
       <item>
+       <widget class="QPushButton" name="reset_button">
+        <property name="text">
+         <string>重置</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <spacer name="horizontalSpacer_3">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
        <widget class="QLabel" name="label">
         <property name="text">
          <string>当日包含</string>
@@ -84,13 +108,6 @@
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="do_button">
-        <property name="text">
-         <string>执行</string>
-        </property>
-       </widget>
-      </item>
-      <item>
        <widget class="QCheckBox" name="run_mute_checkbox">
         <property name="text">
          <string>静默</string>
@@ -99,6 +116,38 @@
          <bool>true</bool>
         </property>
        </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="do_button">
+        <property name="styleSheet">
+         <string notr="true">QPushButton {
+    background-color: #007bff;
+    color: white;
+}
+QPushButton:hover {
+    background-color: #0069d9;
+}
+QPushButton:pressed {
+    background-color: #0062cc;
+}</string>
+        </property>
+        <property name="text">
+         <string>执行</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
       </item>
      </layout>
     </item>
@@ -210,6 +259,7 @@
     </layout>
    </widget>
   </widget>
+  <widget class="QStatusBar" name="statusBar"/>
  </widget>
  <resources/>
  <connections/>
