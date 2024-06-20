@@ -12,7 +12,7 @@ def before_run():
     os.makedirs(DATA_RESULT_PATH, exist_ok=True)
     # 2. 拷贝关键文件到tmp路径
     for file in os.listdir(DATA_IMPORTANT_PATH):
-        if not file.startswith("~") and (file.endswith("xlsx"), file.endswith("xlsm")):
+        if not file.startswith("~") and (file.endswith("xlsx") or file.endswith("xlsm")):
             old_path = os.path.join(DATA_IMPORTANT_PATH, file)
             new_path = os.path.join(DATA_TMP_PATH, file)
             copy_file(old_path, new_path)

@@ -170,9 +170,11 @@ class MyDailyReportClient(QMainWindow):
             img_path = os.path.join(DATA_TMP_PATH, f"{i}.png")
             sheet_picture.main(
                 excel_path=DAILY_REPORT_TMP_TEMPLATE_PATH,
-                img_path=img_path,
                 sheet_name_or_index=i,
+                img_path=img_path,
+                padding=[20, 20, 0, 20],  # up right bottom left
                 run_mute=self.run_mute_checkbox.isChecked()
+
             )
         self.done = True
         # 第三步：清理

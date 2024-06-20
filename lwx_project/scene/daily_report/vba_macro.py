@@ -187,7 +187,7 @@ End Sub
 
 # 第三个宏：生成图片：第一个参数是图片地址（.png），第二个参数是sheet的name或者index
 __MACRO_3 = """
-Sub 生成图片(imgPath As String, sheetIdentifier As Variant)
+Sub 生成图片(imgPath As String, sheetIdentifier As Variant, Optional topPadding As Integer = 0, Optional rightPadding As Integer = 0, Optional bottomPadding As Integer = 0, Optional leftPadding As Integer = 0)
     Dim ws As Worksheet
     Dim chartObj As ChartObject
     
@@ -206,12 +206,14 @@ Sub 生成图片(imgPath As String, sheetIdentifier As Variant)
     ' 将工作表的内容复制为图片
     ws.UsedRange.CopyPicture Appearance:=xlScreen, Format:=xlBitmap
     
+    
     ' 创建一个足够大的图表对象来容纳整个UsedRange
-    Set chartObj = ws.ChartObjects.Add(Left:=0, Top:=0, Width:=ws.UsedRange.Width, Height:=ws.UsedRange.Height)
+    Set chartObj = ws.ChartObjects.Add(Left:=0, Top:=0, Width:=ws.UsedRange.Width + leftPadding + rightPadding, Height:=ws.UsedRange.Height + topPadding + bottomPadding)
     With chartObj
         ' 确保图表没有边框和白边
         .Chart.ChartArea.Border.LineStyle = xlLineStyleNone
-        .Chart.ChartArea.Format.Fill.Visible = msoFalse
+        .Chart.ChartArea.Format.Fill.Visible = msoTrue
+         .Chart.ChartArea.Format.Fill.ForeColor.RGB = RGB(255, 255, 255) ' 设置背景色为白色
         .Chart.PlotArea.Border.LineStyle = xlLineStyleNone
         .Chart.PlotArea.Format.Fill.Visible = msoFalse
         ' 粘贴图片到图表区域
@@ -219,6 +221,9 @@ Sub 生成图片(imgPath As String, sheetIdentifier As Variant)
         ' 调整图表区域大小以匹配图片大小
         .Width = .Chart.ChartArea.Width
         .Height = .Chart.ChartArea.Height
+         ' 将图片移动到图表的中心位置
+        .Chart.Pictures(1).Top = topPadding
+        .Chart.Pictures(1).Left = leftPadding
     End With
     
     ' 导出图表为图片
@@ -231,7 +236,5 @@ Sub 生成图片(imgPath As String, sheetIdentifier As Variant)
     ActiveWindow.DisplayGridlines = True
     ' ws.Application.Windows(ws.Parent.Name).DisplayGridlines = True   这种写法不起作用
 End Sub
-
-usedRange可能会多算了很多空白列，将这里的逻辑改成检查不是所有行都是空的列
 
 """
