@@ -7,9 +7,9 @@ from PyQt5.QtWidgets import QMainWindow, QFileDialog, QMessageBox, QApplication
 from lwx_project.client.const import UI_PATH
 from lwx_project.scene.daily_report.const import *
 from lwx_project.scene.daily_report.main import before_run, after_run
-from lwx_project.scene.daily_report.steps import rename, calculate
+from lwx_project.scene.daily_report.steps import rename, calculate, sheet_picture
 from lwx_project.utils.conf import get_txt_conf, set_txt_conf
-from lwx_project.utils.file import get_file_name_without_extension, copy_file
+from lwx_project.utils.file import get_file_name_without_extension, copy_file, make_zip
 from lwx_project.utils.time_obj import TimeObj
 
 UPLOAD_REQUIRED_FILES = ["代理期缴保费", "公司网点经营情况统计表", "农行渠道实时业绩报表"]  # 上传的文件必须要有
@@ -37,6 +37,10 @@ class MyDailyReportClient(QMainWindow):
         copy_summary_button: 点击后将领导的话复制到剪贴板
 
         download_file_button: 下载最终文件的按钮
+            代理期缴保费.xlsm(传上来的，但是执行宏会改）
+            每日报表汇总.xlsm(有可能传，执行完宏会变)
+            改名的所有文件（改完名的xlsx）
+            生成的图片（指定excel的范围，）
     """
     def __init__(self):
         super(MyDailyReportClient, self).__init__()
@@ -121,9 +125,10 @@ class MyDailyReportClient(QMainWindow):
             QMessageBox.warning(self, "Warning", f"请先执行")
             return
         options = QFileDialog.Options()
-        filePath, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()", f"{TimeObj().time_str}_每日报表汇总.xlsx","All Files (*);;Text Files (*.txt)", options=options)
+        filePath, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()", f"{TimeObj().time_str}_日报汇总.zip","All Files (*);;Text Files (*.zip)", options=options)
         if filePath:
-            copy_file(DAILY_REPORT_RESULT_TEMPLATE_PATH, filePath)
+            make_zip(DATA_TMP_PATH, filePath.rstrip(".zip"))
+            # copy_file(DAILY_REPORT_RESULT_TEMPLATE_PATH, filePath)
 
     def do(self):
         """核心执行函数
@@ -159,9 +164,19 @@ class MyDailyReportClient(QMainWindow):
         self.num_text = result["num_text"]
         self.leader_word_variables = result["leader_word_variables"]
         self.set_random_leader_word()
+
+        # 第三步截图
+        for i in range(3, 14):  # 3,4,5...,13
+            img_path = os.path.join(DATA_TMP_PATH, f"{i}.png")
+            sheet_picture.main(
+                excel_path=DAILY_REPORT_TMP_TEMPLATE_PATH,
+                img_path=img_path,
+                sheet_name_or_index=i,
+                run_mute=self.run_mute_checkbox.isChecked()
+            )
         self.done = True
         # 第三步：清理
-        after_run()
+        # after_run()
 
     def copy_leader_word(self):
         """拷贝领导的话

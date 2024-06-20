@@ -13,5 +13,10 @@ def copy_file(old_path, new_path, overwrite_if_exists=True):
     shutil.copyfile(old_path, new_path)
 
 
+def make_zip(source_directory, output_filename):
+    """将一个目录下的素有文件和子目录打包"""
+    shutil.make_archive(output_filename, 'zip', source_directory)
+
+
 def get_file_name_without_extension(file_name):
     return os.path.splitext(os.path.basename(file_name))[0]

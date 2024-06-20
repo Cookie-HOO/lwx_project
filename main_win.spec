@@ -28,7 +28,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='main',
+    name='李文萱的工作空间_v1.0.2',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
