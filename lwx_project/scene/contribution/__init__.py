@@ -54,7 +54,12 @@ def main_with_args(df, alpha):
     # 3. 汇总贡献率
     df = final_contribution.main(df, alpha)
 
-    return df
+    # 4. 去掉均值公司（为了下载）
+    df_download = final_contribution.main(df[~df["公司"].isin(["均值公司", "合计"])], alpha)
+
+    df = df[["公司", "期缴保费", "去年期缴保费", "同比", "增量", "贡献率", "__贡献率"]]  # 用于排序和画图
+    df_download = df_download[["公司", "期缴保费", "去年期缴保费", "同比", "增量", "贡献率"]]
+    return df, df_download
 
 
 if __name__ == '__main__':

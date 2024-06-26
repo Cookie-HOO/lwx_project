@@ -59,7 +59,115 @@ class BaseWorker(QThread):
         raise NotImplementedError
 
 
-class WindowWithMainWorker(QMainWindow):
+class BaseWindow(QMainWindow):
+    ############  元素操作: 直接调用, 或者是worker发送事件的消费者 ############
+    # 清除元素
+    def clear_element(self, element):
+        ele = getattr(self, element)
+        if ele is None:
+            return self.modal("warn", f"no such element: {element}")
+        ele.clear()
+
+    # 元素追加内容
+    def append_element(self, element, item):
+        pass
+
+    # 元素覆盖内容
+    def set_element(self, element, item):
+        self.clear_element(element)
+        ele = getattr(self, element)
+        if ele is None:
+            self.modal("warn", f"no such element: {element}")
+            return
+        if isinstance(ele, QListWidget):
+            ele.addItems(json.loads(item))
+
+    ############ 组件封装 ############
+    def modal(self, level, msg, title=None, done=None, **kwargs):
+        """
+        :param level:
+        :param msg:
+        :param title:
+        :param done:
+        :param kwargs
+            count_down
+        :return:
+        """
+        title = title or level
+        if level == "error" and done is None:
+            done = True
+
+        if level == "info":
+            if done:
+                self.done = True
+            QMessageBox.information(self, title, msg)
+        elif level == "warn":
+            if done:
+                self.done = True
+            QMessageBox.warning(self, title, msg)
+        elif level == "error":
+            if done:
+                self.set_status_failed()
+                self.done = True
+            QMessageBox.critical(self, title, msg)
+        elif level == "check_yes":  # 只要yes（点击No或者关闭，reply都是一个值）
+            reply = QMessageBox.question(
+                self, title, msg, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            return reply == QMessageBox.Yes
+        elif level == "tip":
+            msgBox = QMessageBox()
+            msgBox.setIcon(QMessageBox.Information)
+            msgBox.setText(msg)
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setDefaultButton(QMessageBox.Ok)
+
+            # 创建一个定时器
+            timer = QTimer()
+            timer.setSingleShot(True)
+            timer.timeout.connect(msgBox.close)
+            timer.start(kwargs.get("count_down", 3) * 1000)  # 默认3秒后关闭
+
+    # 上传
+    def upload_file_modal(self, patterns, multi=False):
+        """
+        :param patterns:
+            [(pattern_name, pattern), (pattern_name, pattern)]  ("Excel Files", "*.xls*")
+        :param multi: 是否支持多选
+        :return:
+        """
+        if len(patterns) == 2 and isinstance(patterns[0], str):
+            patterns = [patterns]
+        options = QFileDialog.Options()
+        pattern_str = ";;".join([f"{pattern_name} ({pattern})" for pattern_name, pattern in patterns])
+        func = QFileDialog.getOpenFileNames if multi else QFileDialog.getOpenFileName
+        file_name_or_list, _ = func(self, "QFileDialog.getOpenFileName()", "", pattern_str, options=options)
+        return file_name_or_list
+
+    # 下载
+    def download_file_modal(self, default_name: str):
+        options = QFileDialog.Options()
+        suffix = default_name.split(".")[-1]
+        file_path, _ = QFileDialog.getSaveFileName(self, "QFileDialog.getSaveFileName()", default_name,
+                                                   f"All Files (*);;Text Files (*.{suffix})", options=options)
+        return file_path
+
+    # 复制
+    @staticmethod
+    def copy2clipboard(text: str):
+        QApplication.clipboard().setText(text)
+
+    ############ wrapper类函数: 函数式编程思想,减少代码 ############
+    def func_modal_wrapper(self, msg, func, *args, **kwargs):
+        func(*args, **kwargs)
+        self.modal("info", msg)
+
+    def modal_func_wrapper(self, limit, warn_msg, func, *args, **kwargs):
+        if not limit:
+            return self.modal("warn", warn_msg)
+        func(*args, **kwargs)
+
+
+class WindowWithMainWorker(BaseWindow):
     """主窗口的一种模式
     在这个窗口中,存在一个主任务,窗口的设计都围绕这个主任务进行
     """
@@ -81,7 +189,7 @@ class WindowWithMainWorker(QMainWindow):
         # 任务状态与显示
         self.refresh_text = ""  # worker中发出来后,绑定到这个变量,被statusbar更新
         self.status_text = ""  # 完整状态信息,有运行时间 + refresh_text
-        self.status = None
+        self.__status = None
 
     # 注册一个Worker
     def register_worker(self) -> BaseWorker:
@@ -90,42 +198,50 @@ class WindowWithMainWorker(QMainWindow):
     ############  生命周期状态 ############
     @property
     def is_empty_status(self):
-        return self.status is None  # 原始状态
+        return self.__status is None  # 原始状态
 
     @property
     def is_init(self):
-        return self.status == "init"
+        return self.__status == "init"
 
     @property
     def is_running(self):
-        return self.status == "running"
+        return self.__status == "running"
 
     @property
     def is_done(self):
-        return self.status in ["success", "failed"]
+        return self.__status in ["success", "failed"]
 
     @property
     def is_success(self):
-        return self.status == "success"
+        return self.__status == "success"
 
     @property
     def is_failed(self):
-        return self.status == "failed"
+        return self.__status == "failed"
 
     def set_status_empty(self):
-        self.status = None
+        self.timer.stop()
+        self.__status = None
 
     def set_status_init(self):
-        self.status = "init"
+        self.__status = "init"
 
     def set_status_running(self):
-        self.status = "running"
+        self.__status = "running"
 
     def set_status_success(self):
-        self.status = "success"
+        elapsed_time = self.start_time.secsTo(QTime.currentTime())
+        self.statusBar.showMessage(f"Success: Last for: {elapsed_time} seconds")
+        self.timer.stop()
+        self.__status = "success"
+        self.modal("info", title="Finished", msg=f"执行完成,共用时{self.start_time.secsTo(QTime.currentTime())}秒")
 
     def set_status_failed(self):
-        self.status = "failed"
+        elapsed_time = self.start_time.secsTo(QTime.currentTime())
+        self.statusBar.showMessage(f"Failed: Last for: {elapsed_time} seconds")
+        self.timer.stop()
+        self.__status = "failed"
 
     ############  生命周期: 直接调用, 或者是worker发送事件的消费者 ############
     # 生命周期: worker任务启动
@@ -145,104 +261,4 @@ class WindowWithMainWorker(QMainWindow):
 
     # 生命周期: worker停止前
     def before_finished(self):
-        elapsed_time = self.start_time.secsTo(QTime.currentTime())
-        self.statusBar.showMessage(f"Success: Last for: {elapsed_time} seconds")
-        self.timer.stop()
         self.set_status_success()
-        self.modal("info", title="Finished", msg=f"执行完成,共用时{self.start_time.secsTo(QTime.currentTime())}秒")
-
-    ############  元素操作: 直接调用, 或者是worker发送事件的消费者 ############
-    # 清除元素
-    def clear_element(self, element):
-        ele = getattr(self, element)
-        if ele is None:
-            self.modal("warn", f"no such element: {element}")
-            return
-        ele.clear()
-
-    # 元素追加内容
-    def append_element(self, element, item):
-        pass
-
-    # 元素覆盖内容
-    def set_element(self, element, item):
-        self.clear_element(element)
-        ele = getattr(self, element)
-        if ele is None:
-            self.modal("warn", f"no such element: {element}")
-            return
-        if isinstance(ele, QListWidget):
-            ele.addItems(json.loads(item))
-
-    ############ 组件封装 ############
-    def modal(self, level, msg, title=None, done=None):
-        """
-        :param level:
-        :param msg:
-        :param title:
-        :param done:
-        :return:
-        """
-        title = title or level
-        if level == "error" and done is None:
-            done = True
-
-        if level == "info":
-            if done:
-                self.done = True
-            QMessageBox.information(self, title, msg)
-        elif level == "warn":
-            if done:
-                self.done = True
-            QMessageBox.warning(self, title, msg)
-        elif level == "error":
-            if done:
-                self.set_status_failed()
-                self.done = True
-            QMessageBox.critical(self, title, msg)
-        elif level == "question":
-            reply = QMessageBox.question(
-                self, title, msg, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            return reply == QMessageBox.Yes
-
-    # 上传
-    def upload_file_modal(self, patterns, multi=True):
-        """
-        :param patterns:
-            [(pattern_name, pattern), (pattern_name, pattern)]  ("Excel Files", "*.xls*")
-        :param multi: 是否支持多选
-        :return:
-        """
-        if len(patterns) == 2 and isinstance(patterns[0], str):
-            patterns = [patterns]
-        options = QFileDialog.Options()
-        pattern_str = ";;".join([f"{pattern_name} ({pattern})" for pattern_name, pattern in patterns])
-        func = QFileDialog.getOpenFileNames if multi else QFileDialog.getOpenFileName
-        file_name_or_list, _ = func(self, "QFileDialog.getOpenFileName()", "", pattern_str, options=options)
-        return file_name_or_list
-
-    # 下载
-    def download_file_modal(self, default_name: str):
-        options = QFileDialog.Options()
-        suffix = default_name.split(".")[-1]
-        file_path, _ = QFileDialog.getSaveFileName(self, "QFileDialog.getSaveFileName()", default_name, f"All Files (*);;Text Files (*.{suffix})", options=options)
-        return file_path
-
-    # 复制
-    @staticmethod
-    def copy2clipboard(text: str):
-        QApplication.clipboard().setText(text)
-
-    ############ wrapper类函数: 函数式编程思想,减少代码 ############
-    def func_modal_wrapper(self, msg, func, *args, **kwargs):
-        func(*args, **kwargs)
-        self.modal("info", msg)
-
-    def modal_func_wrapper(self, limit, warn_msg, func, *args, **kwargs):
-        if not limit:
-            self.modal("warn", warn_msg)
-            return
-        func(*args, **kwargs)
-
-
-

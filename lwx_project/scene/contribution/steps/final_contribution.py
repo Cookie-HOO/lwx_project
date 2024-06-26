@@ -41,7 +41,6 @@ def main(df, alpha):
     df.replace('0.0%', 0, inplace=True)
 
     # 5. 整理结果
-    df = df[["公司", "期缴保费", "去年期缴保费", "同比", "增量", "贡献率", "__贡献率"]]
     df = pd.concat([df, summary], axis=0, ignore_index=True)
     df["期缴保费"] = df["期缴保费"].apply(lambda x: float2int(x))
     df["去年期缴保费"] = df["去年期缴保费"].apply(lambda x: float2int(x))

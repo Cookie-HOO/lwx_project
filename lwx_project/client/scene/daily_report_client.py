@@ -13,7 +13,7 @@ from lwx_project.scene.daily_report.const import *
 from lwx_project.scene.daily_report.main import before_run, after_run
 from lwx_project.scene.daily_report.steps import rename, calculate, sheet_picture
 from lwx_project.utils.conf import get_txt_conf, set_txt_conf
-from lwx_project.utils.file import get_file_name_without_extension, make_zip
+from lwx_project.utils.file import get_file_name_without_extension, make_zip, copy_file
 from lwx_project.utils.time_obj import TimeObj
 
 UPLOAD_REQUIRED_FILES = ["代理期缴保费", "公司网点经营情况统计表", "农行渠道实时业绩报表"]  # 上传的文件必须要有
@@ -44,6 +44,7 @@ class Worker(BaseWorker):
         for file in KEY_RESULT_FILE_SET:
             if file not in os.listdir(DATA_TMP_PATH):
                 return self.modal_signal.emit("error", f"缺少 {file} 文件，无法进行下一步")
+        self.modal_signal.emit("tip", f"生成的文件整齐: {KEY_RESULT_FILE_SET}，即将开始下一步宏执行")
 
         # 第二步：执行宏
         self.refresh_signal.emit("执行宏...")
@@ -63,7 +64,7 @@ class Worker(BaseWorker):
                 excel_path=DAILY_REPORT_TMP_TEMPLATE_PATH,
                 sheet_name_or_index=i,
                 img_path=img_path,
-                padding=[20, 20, 0, 20],  # up right bottom left
+                padding=[20, 20, 20, 20],  # up right bottom left
                 run_mute=run_mute_checkbox
             )
 
@@ -114,11 +115,9 @@ class MyDailyReportClient(WindowWithMainWorker):
         self.important_file_names = None
         self.upload_file_button.clicked.connect(self.upload_file)  # 将按钮的点击事件连接到upload_file方法
         ## 2.2 执行按钮绑定
-        self.num_text = ""
-        self.leader_word_variables = {}
         self.do_button.clicked.connect(self.do)
         ## 2.3 随机生成名言警句按钮绑定
-        self.motto_change_button.clicked.connect(lambda: self.modal_func_wrapper(self.is_success, "请先执行或等待完成" + self.status_text, self.custom_set_random_leader_word, self.num_text, self.leader_word_variables))
+        self.motto_change_button.clicked.connect(self.custom_set_random_leader_word)
         ## 2.4 拷贝按钮绑定
         self.copy_summary_button.clicked.connect(lambda: self.copy2clipboard(self.leader_word_value.toPlainText()))
         ## 2.5 下载文件按钮绑定
@@ -162,11 +161,14 @@ class MyDailyReportClient(WindowWithMainWorker):
             if upload_important_file not in base_names:
                 return self.modal("warn", f"请包含{upload_important_file}文件")
         if UPLOAD_IMPORTANT_FILE in base_names:
-            answer = self.modal("question", title=UPLOAD_IMPORTANT_FILE + "?", msg=f"你上传了{UPLOAD_IMPORTANT_FILE}, 确定要用吗, YES会覆盖现有的,NO会剔除这个文件,上传其他文件")
-            if not answer:
-                index = base_names.index(UPLOAD_IMPORTANT_FILE)
-                base_names.pop(index)
-                file_names.pop(index)
+            answer = self.modal("check_yes", title=UPLOAD_IMPORTANT_FILE + "?", msg=f"你上传了{UPLOAD_IMPORTANT_FILE}, 确定要用吗, YES会覆盖现有的,NO会剔除这个文件,上传其他文件")
+            file_index = base_names.index(UPLOAD_IMPORTANT_FILE)
+            if answer:
+                file = file_names[file_index]  # 上传的关键文件，需要替换到important路径
+                copy_file(DAILY_REPORT_SOURCE_TEMPLATE_PATH, file)  # 覆盖important的这个文件
+            else:  # 删除上传的这个文件
+                base_names.pop(file_index)
+                file_names.pop(file_index)
 
         colors = []
         important_file_names = []
@@ -196,9 +198,10 @@ class MyDailyReportClient(WindowWithMainWorker):
         if not self.is_success:
             return self.modal("info", "请先执行或等待任务完成..." + self.status_text)
         file_path = self.download_file_modal(f"{TimeObj().time_str}_日报汇总.zip")
-        if file_path:
-            make_zip(DATA_TMP_PATH, file_path.rstrip(".zip"))
-            # copy_file(DAILY_REPORT_RESULT_TEMPLATE_PATH, filePath)
+        if not file_path:
+            return
+        make_zip(DATA_TMP_PATH, file_path.rstrip(".zip"))
+        # copy_file(DAILY_REPORT_RESULT_TEMPLATE_PATH, filePath)
 
     def do(self):
         """核心执行函数
@@ -223,8 +226,8 @@ class MyDailyReportClient(WindowWithMainWorker):
         """设置领导的话
         :return:
         """
-        self.num_text = num_text
-        self.leader_word_variables = leader_word_variables
+        if not num_text or not leader_word_variables:
+            return
         self.clear_element("leader_word_value")
         before, after = get_txt_conf(LEADER_WORD_TEMPLATE_PATH, str).split("{motto}")
         motto = random.choice(get_txt_conf(MOTTO_TEXT_PATH, list))

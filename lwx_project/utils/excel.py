@@ -1,5 +1,4 @@
 import xlwings as xw
-import win32com.client as wc
 
 
 def call_excel_macro_by_xlwings(excel_path, macro_names=None, marco_names_with_args=None, run_mute=False):
@@ -37,7 +36,7 @@ def call_excel_macro_by_win32(excel_path, macro_names=None, marco_names_with_arg
     :param run_mute:
     :return:
     """
-
+    import win32com.client as wc
     xlApp = wc.DispatchEx("Excel.Application")
     xlApp.Visible = not run_mute
     xlApp.DisplayAlerts = 0

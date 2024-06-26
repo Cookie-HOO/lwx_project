@@ -4,10 +4,11 @@ import pandas as pd
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPen, QColor
-from PyQt5.QtWidgets import QFileDialog, QMainWindow, QGraphicsScene, QMessageBox
 
+from lwx_project.client.base import BaseWindow
 from lwx_project.client.const import UI_PATH, COLOR_WHITE, COLOR_RED, COLOR_GREEN
 from lwx_project.client.utils import table_widget
+from lwx_project.client.utils.graph_widget import GraphWidgetWrapper
 from lwx_project.scene import contribution
 from lwx_project.utils.logger import logger_sys_error
 
@@ -46,44 +47,51 @@ def style_func(df, i, j):
         return QColor(*COLOR_GREEN)
 
 
-class MyContributionClient(QMainWindow):
+class MyContributionClient(BaseWindow):
     def __init__(self):
         super(MyContributionClient, self).__init__()
         uic.loadUi(UI_PATH.format(file="contribution.ui"), self)  # 加载.ui文件
         self.setWindowTitle("期缴保费贡献率计算器——By LWX")
         self.df = None
-        # self.alpha_value.setText(str(0.85))
-        # self.alpha_slider.setValue(85)
+        self.df_download = None
 
         self.upload_table_button.clicked.connect(self.upload_file)  # 将按钮的点击事件连接到upload_file方法
         self.download_table_button.clicked.connect(self.download_file)  # 将按钮的点击事件连接到upload_file方法
         self.alpha_slider.valueChanged.connect(self.alpha_changed)
 
     def upload_file(self):
-        options = QFileDialog.Options()
-        fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","Excel Files (*.xlsx)", options=options)
-        if not fileName:
+        file_name = self.upload_file_modal(("Excel Files", "*.xlsx"), multi=False)
+        if not file_name:
             return
-        df = pd.read_excel(fileName, skiprows=1)
-        df = df.drop(df.index[-1])  # 取消最后一行总计
-        df.columns = [i.replace("\n", "") for i in df.columns]
+        df = pd.read_excel(file_name, skiprows=1)
+        df.columns = [str(i).replace("\n", "") for i in df.columns]
         # df.drop(df.index[-1], inplace=True)
         cols = ["公司", "期缴保费", "去年期缴保费"]
         for col in cols:
             if col not in df.columns:
-                QMessageBox.warning(self, "Warning", f"上传的文件缺少：{col}")
-                return
-        self.df = df[cols]
+                return self.modal("warn", msg=f"上传的文件缺少列：{col}")
+        if df["公司"].values[-1] == "合计":
+            df = df.drop(df.index[-1])  # 取消最后一行总计
+        self.df = df[cols]  # 将处理完的结果挂到self上
         table_widget.fill_data(self.table_value, self.df)
 
     def download_file(self):
-        # 弹出一个文件保存对话框，获取用户选择的文件路径
-        options = QFileDialog.Options()
-        filePath, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()", "贡献度计算结果.xlsx","All Files (*);;Text Files (*.txt)", options=options)
-        if filePath:
+        # 询问是否包含均值公司
+        with_mean = self.modal("check_yes", title="下载", msg="下载是否包含「均值公司」")
+        if with_mean is None:
+            return
+        # 询问路径
+        file_path = self.download_file_modal("贡献度计算结果.xlsx")
+        if not file_path or self.df_download is None:
+            return
+        # 保存
+        if with_mean:  # 包含均值公司（当前表格中显示的）
             df = table_widget.get_data(self.table_value)
-            # 将数据转换为DataFrame
-            df.to_excel(filePath, index=False)
+            df.to_excel(file_path, index=False)
+        else:
+            self.df_download.to_excel(file_path, index=False)
+
+
 
     @logger_sys_error
     def alpha_changed(self, value):
@@ -91,11 +99,15 @@ class MyContributionClient(QMainWindow):
         self.alpha_value.setText(str(alpha))
         if self.df is not None:
             # 生成表格
-            df = contribution.main_with_args(self.df, alpha)
+            df, self.df_download = contribution.main_with_args(self.df, alpha)
             table_widget.fill_data(self.table_value, df, style_func)
             company_value = df["公司"].tolist()
             contribution_value = df["贡献率"].tolist()
+            contribution_num = df["__贡献率"]
 
+            # 正和负的个数
+            self.positive_num_value.setText(f"正贡献率公司：{len(contribution_num[contribution_num > 0])}个")
+            self.negative_num_value.setText(f"负贡献率公司：{len(contribution_num[contribution_num < 0])}个")
             # 前五和倒五
             if len(company_value) > 1:
                 self.rank_1.setText(f'{company_value[0]}: {contribution_value[0]}')
@@ -114,36 +126,11 @@ class MyContributionClient(QMainWindow):
                 self.rank_neg_5.setText(f'{company_value[-6]}: {contribution_value[-6]}')
 
             # 画直方图
-            self.graph_value.setScene(self.create_scene(df))
-
-    def create_scene(self, df, with_y_tick=True):
-        data = df["__贡献率"]
-        data = data[:-1]  # 去掉总计
-        scene = QGraphicsScene(self)
-        scene.setSceneRect(0, 0, self.graph_value.width(), self.graph_value.height())
-        x = self.graph_value.width() - 20
-        y = (self.graph_value.height()-20) / 2
-        width = self.graph_value.width() / len(data)
-        height = self.graph_value.height() / 2 / max(data)
-
-        red_pen = QPen(Qt.red, 2, Qt.SolidLine)
-        green_pen = QPen(Qt.green, 2, Qt.SolidLine)
-        if with_y_tick:
+            red_pen = QPen(Qt.red, 2, Qt.SolidLine)
+            green_pen = QPen(Qt.green, 2, Qt.SolidLine)
             gray_pen = QPen(Qt.gray, 1, Qt.DashLine)
-            y_value_list = [i/10 for i in range(-30, 31, 1)]
-            for y_real_value in y_value_list:
-                if y_real_value >= 0:
-                    y_value = y - y_real_value * height
-                    scene.addLine(0, y_value, x, y_value, gray_pen)
-                else:
-                    y_value = y + abs(y_real_value) * height
-                    scene.addLine(0, y_value, x, y_value, gray_pen)
-                scene.addLine(0, y, x, y, gray_pen)
 
-        for value in data:
-            if value >= 0:
-                scene.addLine(x, y, x, y - value * height, red_pen)
-            else:
-                scene.addLine(x, y, x, y + abs(value) * height, green_pen)
-            x -= width
-        return scene
+            GraphWidgetWrapper(self.graph_value)\
+                .add_bin_histgram(df["__贡献率"][:-1].to_list(), q_pen_positive=red_pen, q_pen_negative=green_pen)\
+                .set_y_tick(q_pen=gray_pen)\
+                .draw()
