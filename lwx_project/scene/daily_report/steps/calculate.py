@@ -8,7 +8,7 @@ import pandas as pd
 from lwx_project.scene.daily_report.const import *
 from lwx_project.utils.conf import get_txt_conf
 from lwx_project.utils.df import get_window_of_df_as_df
-from lwx_project.utils.excel import call_excel_macro
+from lwx_project.utils.excel_macro import call_excel_macro
 from lwx_project.utils.file import copy_file
 from lwx_project.utils.time_obj import TimeObj
 
@@ -42,12 +42,6 @@ def main(copy2tmp_path_list=None, run_mute=False):
     data.to_csv(string_buf, header=False, index=False, sep=" ", quoting=csv.QUOTE_NONE, escapechar=' ')
     num_text = string_buf.getvalue().replace("\r\n", "\n")
     leader_word_template_text, leader_word_variables = get_cheer_up_text()
-    # 3. 生成图片待定，将最终的3-13个（1开始）的sheet独立生成一个新的xlsx
-    copy_file(DAILY_REPORT_TMP_TEMPLATE_PATH, os.path.join(DATA_RESULT_PATH, f"每日报表汇总.xlsm"))
-    # save_sheet_for_excel(DAILY_REPORT_TEMPLATE_PATH)
-    # get_picture(DAILY_REPORT_TEMPLATE_PATH, 1)
-    # df_all = pd.read_excel(DAILY_REPORT_TEMPLATE_PATH, header=None, sheet_name=list(range(3,14)))
-    # print()
     return {
         "num_text": num_text,
         "leader_word_variables": leader_word_variables,

@@ -3,7 +3,7 @@ import re
 import pandas as pd
 
 from lwx_project.scene.product_evaluation.const import *
-from lwx_project.utils.string import replace_parentheses_and_comma
+from lwx_project.utils.strings import replace_parentheses_and_comma
 from lwx_project.utils.time_obj import TimeObj
 
 
@@ -183,10 +183,9 @@ def main(df):
     today = TimeObj()
     if today.season == 1:
         return df_for_value_group
-    before_season_name = FEE_IN_SEASON_BEFORE.get(today.season)
     last_season_fee = pd.read_excel(LAST_TERM_PATH, skiprows=2)
     last_season_fee_group = last_season_fee.groupby("险种名称", as_index=False)["本期实现保费"].sum()
-    last_season_fee_group = last_season_fee_group.rename(columns={"本期实现保费": before_season_name})
+    last_season_fee_group = last_season_fee_group.rename(columns={"本期实现保费": "截止上季度实现保费"})
 
     df_for_value_group = df_for_value_group.merge(last_season_fee_group, how="left", on="险种名称")
     return df_for_value_group.fillna(0)

@@ -13,7 +13,8 @@ PRODUCT_LIST_PATH = os.path.join(DATA_TMP_PATH, "产品目录.xlsx")
 PRODUCT_DETAIL_PATH = os.path.join(DATA_TMP_PATH, "分行代理保险产品分险种销售情况统计表.xlsx")
 COMPANY_ABBR_PATH = os.path.join(DATA_TMP_PATH, "对应表.xlsx")
 LAST_TERM_PATH = os.path.join(DATA_TMP_PATH, "上期保费.xlsx")
-
+EXCEL_TEMPLATE_PATH = os.path.join(DATA_TMP_PATH, "模板.xlsm")
+OFFICER_COMPANY_PATH = os.path.join(DATA_TMP_PATH, "公司人员映射表.csv")
 
 # product_type_count: 5款银保产品，0款私行产品，0款团险产品
 # main_product: 人保寿险鑫安两全保险(分红型)(C款)：15.64亿元，人保寿险臻鑫一生终身寿险：2.9亿元
@@ -35,7 +36,7 @@ FEE_IN_SEASON_BEFORE = {
 }
 
 # 人员与公司
-OFFICER_COMPANY_FILE = "【{officer}】产品后评价{year_num}{season_char}季度.xlsm"
+OFFICER_COMPANY_FILE = "【{officer}】产品后评价{last_season_char_with_year_num}.xlsm"
 OFFICER_MAP_COMPANY = {
     "刘轶翔": ["太平人寿", "利安人寿", "天安人寿", "恒大人寿", "财信吉祥人寿", "招商局仁和人寿", "弘康人寿", "新华人寿"],
     "李坤": ["中华联合人寿", "东吴人寿", "华贵人寿", "中意人寿", "英大泰和人寿", "珠江人寿", "中韩人寿", "北京人寿", "海保人寿"],

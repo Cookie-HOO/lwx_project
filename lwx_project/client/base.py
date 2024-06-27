@@ -6,6 +6,8 @@ from PyQt5.QtWidgets import QWidget, QLabel, QMainWindow, QMessageBox, QListWidg
 from PyQt5.QtGui import QPixmap
 
 from lwx_project.client.const import *
+from lwx_project.client.utils.exception import ClientWorkerException
+from lwx_project.client.utils.message_widget import TipWidgetWithCountDown
 from lwx_project.utils.logger import logger_sys_error
 
 
@@ -49,9 +51,10 @@ class BaseWorker(QThread):
         self.after_start_signal.emit()
         try:
             self.my_run()
+        except ClientWorkerException as e:
+            return self.modal_signal.emit("error", str(e))
         except Exception as e:
-            self.modal_signal.emit("error", traceback.format_exc())
-            return
+            return self.modal_signal.emit("error", traceback.format_exc())
         self.before_finished_signal.emit()
 
     @logger_sys_error
@@ -115,17 +118,8 @@ class BaseWindow(QMainWindow):
                 self, title, msg, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             return reply == QMessageBox.Yes
         elif level == "tip":
-            msgBox = QMessageBox()
-            msgBox.setIcon(QMessageBox.Information)
-            msgBox.setText(msg)
-            msgBox.setStandardButtons(QMessageBox.Ok)
-            msgBox.setDefaultButton(QMessageBox.Ok)
-
-            # 创建一个定时器
-            timer = QTimer()
-            timer.setSingleShot(True)
-            timer.timeout.connect(msgBox.close)
-            timer.start(kwargs.get("count_down", 3) * 1000)  # 默认3秒后关闭
+            count_down = kwargs.get("count_down", 3)
+            TipWidgetWithCountDown(msg=msg, count_down=count_down)
 
     # 上传
     def upload_file_modal(self, patterns, multi=False):

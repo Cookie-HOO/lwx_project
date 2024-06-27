@@ -91,8 +91,6 @@ class MyContributionClient(BaseWindow):
         else:
             self.df_download.to_excel(file_path, index=False)
 
-
-
     @logger_sys_error
     def alpha_changed(self, value):
         alpha = value / 100

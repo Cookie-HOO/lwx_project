@@ -1,7 +1,8 @@
 import datetime
 import math
 
-from lwx_project.const import FULL_TIME_FORMATTER, DATE_FORMATTER, TIME_FORMATTER
+from lwx_project.const import FULL_TIME_FORMATTER, DATE_FORMATTER, TIME_FORMATTER, POSITIVE_NUM_CHAR_MAPPING, \
+    DATE_NUM_FORMATTER
 
 
 class TimeObj:
@@ -73,8 +74,29 @@ class TimeObj:
 
     @property
     def season_in_char(self) -> str:
-        mapping = {1: "一", 2: "二", 3: "三", 4: "四"}
-        return mapping.get(self.season)
+        return POSITIVE_NUM_CHAR_MAPPING.get(self.season)
+
+    @property
+    def last_season_char_with_year_num(self) -> str:
+        """2020年一季度"""
+        last_season_in_char = POSITIVE_NUM_CHAR_MAPPING.get(self.season - 1, "四")
+        last_season_year = self.year
+        if self.season == 1:
+            last_season_year = self.year - 1
+        return f"{last_season_year}年{last_season_in_char}季度"
+
+    @property
+    def last_season_last_day_num(self) -> str:
+        """2020年一季度"""
+        # 获取上个季度的最后一天
+        if self.month < 4:
+            return datetime.datetime(self.year - 1, 12, 31).strftime(DATE_NUM_FORMATTER)
+        elif self.month < 7:
+            return datetime.datetime(self.year,3, 31).strftime(DATE_NUM_FORMATTER)
+        elif self.month < 10:
+            return datetime.datetime(self.year,6, 30).strftime(DATE_NUM_FORMATTER)
+        else:
+            return datetime.datetime(self.year,9, 30).strftime(DATE_NUM_FORMATTER)
 
     @property
     def until_last_season(self) -> str:
@@ -90,14 +112,14 @@ class TimeObj:
             return f"{self.year}年前三季度"
 
     @property
-    def is_first_day_of_this_year(self):
+    def is_first_day_of_this_year(self) -> bool:
         return self.year == self.today.year and self.month == 1 and self.day == 1
 
     @property
-    def is_first_day_of_this_season(self):
+    def is_first_day_of_this_season(self) -> bool:
         season_month = self.today.month - (self.today.month - 1) % 3
         return self.year == self.today.year and self.month == season_month and self.day == 1
 
     @property
-    def is_first_day_of_this_month(self):
+    def is_first_day_of_this_month(self) -> bool:
         return self.year == self.today.year and self.month == self.today.month and self.day == 1

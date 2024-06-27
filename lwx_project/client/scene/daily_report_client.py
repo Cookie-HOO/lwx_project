@@ -8,6 +8,7 @@ from PyQt5.QtGui import QColor
 
 from lwx_project.client.base import BaseWorker, WindowWithMainWorker
 from lwx_project.client.const import UI_PATH, COLOR_RED, COLOR_GREEN, COLOR_WHITE
+from lwx_project.client.utils.exception import ClientWorkerException
 from lwx_project.client.utils.list_widget import fill_data
 from lwx_project.scene.daily_report.const import *
 from lwx_project.scene.daily_report.main import before_run, after_run
@@ -43,7 +44,7 @@ class Worker(BaseWorker):
         # 检查结果
         for file in KEY_RESULT_FILE_SET:
             if file not in os.listdir(DATA_TMP_PATH):
-                return self.modal_signal.emit("error", f"缺少 {file} 文件，无法进行下一步")
+                raise ClientWorkerException(f"缺少 {file} 文件，无法进行下一步")
         self.modal_signal.emit("tip", f"生成的文件整齐: {KEY_RESULT_FILE_SET}，即将开始下一步宏执行")
 
         # 第二步：执行宏
@@ -117,7 +118,9 @@ class MyDailyReportClient(WindowWithMainWorker):
         ## 2.2 执行按钮绑定
         self.do_button.clicked.connect(self.do)
         ## 2.3 随机生成名言警句按钮绑定
-        self.motto_change_button.clicked.connect(self.custom_set_random_leader_word)
+        self.num_text = ""
+        self.leader_word_variables = {}
+        self.motto_change_button.clicked.connect(lambda: self.custom_set_random_leader_word(self.num_text, self.leader_word_variables))
         ## 2.4 拷贝按钮绑定
         self.copy_summary_button.clicked.connect(lambda: self.copy2clipboard(self.leader_word_value.toPlainText()))
         ## 2.5 下载文件按钮绑定
@@ -165,7 +168,7 @@ class MyDailyReportClient(WindowWithMainWorker):
             file_index = base_names.index(UPLOAD_IMPORTANT_FILE)
             if answer:
                 file = file_names[file_index]  # 上传的关键文件，需要替换到important路径
-                copy_file(DAILY_REPORT_SOURCE_TEMPLATE_PATH, file)  # 覆盖important的这个文件
+                copy_file(file, DAILY_REPORT_SOURCE_TEMPLATE_PATH)  # 覆盖important的这个文件
             else:  # 删除上传的这个文件
                 base_names.pop(file_index)
                 file_names.pop(file_index)
@@ -228,6 +231,10 @@ class MyDailyReportClient(WindowWithMainWorker):
         """
         if not num_text or not leader_word_variables:
             return
+        # 这个函数由Worker触发，将结果记录到self上
+        self.num_text = num_text
+        self.leader_word_variables = leader_word_variables
+
         self.clear_element("leader_word_value")
         before, after = get_txt_conf(LEADER_WORD_TEMPLATE_PATH, str).split("{motto}")
         motto = random.choice(get_txt_conf(MOTTO_TEXT_PATH, list))
@@ -239,6 +246,8 @@ class MyDailyReportClient(WindowWithMainWorker):
         self.leader_word_value.insertHtml(f'<font color="black">{after_text}</font>')
 
     def reset(self):
+        if self.is_running:
+            return self.modal(level="warn", msg="运行中，无法重置，请等待执行完成")
         self.clear_element("leader_word_value")
         self.clear_element("file_date_value")
         self.set_status_empty()

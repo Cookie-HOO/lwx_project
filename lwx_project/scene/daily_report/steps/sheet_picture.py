@@ -1,5 +1,5 @@
 from lwx_project.scene.daily_report.const import DAILY_REPORT_SOURCE_TEMPLATE_PATH, EXCEL_PIC_MARCO
-from lwx_project.utils.excel import call_excel_macro
+from lwx_project.utils.excel_macro import call_excel_macro
 
 
 def main(excel_path, sheet_name_or_index, img_path, padding=None, run_mute=False):
