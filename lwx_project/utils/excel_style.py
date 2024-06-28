@@ -48,10 +48,10 @@ class ExcelStyleValue:
         """
         if not limit:
             return self
-        row = self.sht.range(f'{row_num}:{row_num}')
-        row.api.Copy()  # 拷贝这一行
-        for _ in range(n):  # 循环粘贴
-            self.sht.range(f'{row_num + n+1}:{row_num + n+1}').api.Insert()
+        for i in range(n):  # 循环粘贴
+            row = self.sht.range(f'{row_num}:{row_num}')
+            row.api.Copy()  # 拷贝这一行
+            self.sht.range(f'{row_num + i+1}:{row_num + i+1}').api.Insert()
         if set_df is not None:
             if n == len(set_df):
                 for index, row in set_df.iterrows():
