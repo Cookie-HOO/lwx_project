@@ -114,7 +114,7 @@ def match_term_num(raw_xianzhong_name, baoxian_type, abbr_2, abbr_4, yinbao_and_
     # 5. 用户自己维护的等价字典
     #  - A -> B  TODO   新华保险 -> 新华人寿  很多钱
     pass
-    return "找不到"
+    return EMPTY_TERM_PLACE_HOLDER
 
 
 def main(df):
@@ -167,7 +167,7 @@ def main(df):
     # has_fee = df_for_value_group[df_for_value_group["__保险类型"] == '有保费']
     # has_fee["期数"] = has_fee.apply(lambda x: math_term_num(x["__保险类型"], x["产品目录统计"], x["保险公司"], yinbao_and_sihang), axis=1)
 
-    no = df_for_value_group[df_for_value_group["期数"] == "找不到"]
+    no = df_for_value_group[df_for_value_group["期数"] == EMPTY_TERM_PLACE_HOLDER]
 
     # 5. 上期保费
     """

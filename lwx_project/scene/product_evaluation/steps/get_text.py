@@ -17,7 +17,6 @@ def groupby_company(df_company):
     ]
     product_type_count = [f"{value}款{name}" for name, value in product_type_list if value > 0]
 
-
     fee_total = df_company["本期实现保费"].sum() / 10000
     fee_way = df_company.groupby("缴费方式")["本期实现保费"].sum()
     qijiao_fee = fee_way.get("期缴", 0) / 10000
@@ -39,8 +38,8 @@ def groupby_company(df_company):
         # product_type_count: 5款银保产品，0款私行产品，0款团险产品
         product_type_count="，".join(product_type_count),
         fee_total='%.2f' % fee_total,
-        dunjiao_fee='%.2f' % dunjiao_fee,
-        qijiao_fee='%.2f' % qijiao_fee,
+        # dun_qi_fee: ，其中趸缴{dunjiao_fee}亿元，期缴{qijiao_fee}亿元
+        dun_qi_fee=f" ，其中趸缴{'%.2f' % dunjiao_fee}亿元，期缴{'%.2f' % qijiao_fee}亿元" if fee_total > 0 else '',
         # main_product: 人保寿险鑫安两全保险(分红型)(C款)：15.64亿元，人保寿险臻鑫一生终身寿险：2.9亿元
         main_product="，".join(main_product),
         main_product_fee_num='%.2f' % main_product_top2_fee,
@@ -61,6 +60,5 @@ def main(df):
 
     df_merge = df_for_text.merge(df_count, how="left", left_on="保险公司", right_on="公司全称")
 
-    # 这里应该用 groupby后的agg的自定义函数，参考「get_value」步骤
     return df_merge.groupby("实际简称", as_index=False).apply(groupby_company).rename(columns={None: "评价"})
 

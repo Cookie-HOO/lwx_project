@@ -18,7 +18,7 @@ from lwx_project.utils.file import get_file_name_without_extension, make_zip, co
 from lwx_project.utils.time_obj import TimeObj
 
 UPLOAD_REQUIRED_FILES = ["代理期缴保费", "公司网点经营情况统计表", "农行渠道实时业绩报表"]  # 上传的文件必须要有
-UPLOAD_IMPORTANT_FILE = "每日报表汇总"  # 如果有会放到tmp路径下
+UPLOAD_IMPORTANT_FILE = "每日报表汇总"  # 如果有会放到tmp路径下，且会覆盖important目录中这个文件（下次使用即使不传，也是这个文件）
 
 
 class Worker(BaseWorker):
@@ -156,13 +156,10 @@ class MyDailyReportClient(WindowWithMainWorker):
         elif self.is_done:
             return self.modal("warn", msg="已完成,下次使用前请先重置")
 
-        file_names = self.upload_file_modal(["Excel Files", "*.xls*"], multi=True)
+        file_names = self.upload_file_modal(["Excel Files", "*.xls*"], multi=True, required_base_name_list=UPLOAD_REQUIRED_FILES)
         if not file_names:
             return
         base_names = [get_file_name_without_extension(file_name) for file_name in file_names]
-        for upload_important_file in UPLOAD_REQUIRED_FILES:
-            if upload_important_file not in base_names:
-                return self.modal("warn", f"请包含{upload_important_file}文件")
         if UPLOAD_IMPORTANT_FILE in base_names:
             answer = self.modal("check_yes", title=UPLOAD_IMPORTANT_FILE + "?", msg=f"你上传了{UPLOAD_IMPORTANT_FILE}, 确定要用吗, YES会覆盖现有的,NO会剔除这个文件,上传其他文件")
             file_index = base_names.index(UPLOAD_IMPORTANT_FILE)

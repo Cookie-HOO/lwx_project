@@ -33,6 +33,9 @@ def main():
     # 步骤二：calculate
     calculate.main()
 
+    # 步骤三：生成截图
+    # 这部分在client中调用
+
 
 if __name__ == '__main__':
     main()

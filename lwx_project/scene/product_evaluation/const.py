@@ -19,8 +19,9 @@ OFFICER_COMPANY_PATH = os.path.join(DATA_TMP_PATH, "公司人员映射表.csv")
 # product_type_count: 5款银保产品，0款私行产品，0款团险产品
 # main_product: 人保寿险鑫安两全保险(分红型)(C款)：15.64亿元，人保寿险臻鑫一生终身寿险：2.9亿元
 # until_last_season：前三季度、前两季度、一季度、1-12月
+# dun_qi_fee: ，其中趸缴{dunjiao_fee}亿元，期缴{qijiao_fee}亿元
 TEXT_SUMMARY = """{until_last_season}，{company_name}（以下简称“{company_abbr}”）先后在我行上线{product_all_count}款产品，其中{product_type_count}。
-我行代理该公司保费共{fee_total}亿元，其中趸缴{dunjiao_fee}亿元，期缴{qijiao_fee}亿元。
+我行代理该公司保费共{fee_total}亿元{dun_qi_fee}。
 主销产品情况：{main_product}，共计{main_product_fee_num}亿元，占代理该公司整体保费规模的{main_product_fee_percent}。"""
 
 
@@ -34,6 +35,8 @@ FEE_IN_SEASON_BEFORE = {
     3: "其中：一、二季度保费",
     4: "其中：一、二、三季度保费",
 }
+
+EMPTY_TERM_PLACE_HOLDER = "——"
 
 # 人员与公司
 OFFICER_COMPANY_FILE = "【{officer}】产品后评价{last_season_char_with_year_num}.xlsm"

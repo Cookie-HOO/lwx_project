@@ -15,6 +15,7 @@ class ExcelStyleValue:
         self.shts = []
 
     def for_each(self, func: typing.Callable[[str], None]):
+        """遍历存储的sheets，遇到batch_copy时会存储"""
         if not self.shts:
             print("没有存储批量的sheet，请先调用batch copy接口批量创建sheet")
         for sht in self.shts:
@@ -28,13 +29,15 @@ class ExcelStyleValue:
         return self
 
     # 单元格操作：合并单元格
-    def merge_cell(self, left_top, right_bottom):
+    def merge_cell(self, left_top, right_bottom, limit=True):
         """
         :param left_top: (1,2)  表示第一行第二列
         :param right_bottom: 同上
+        :param limit: 同上
         :return:
         """
-        self.sht.range(left_top, right_bottom).api.MergeCells = True
+        if limit:
+            self.sht.range(left_top, right_bottom).api.MergeCells = True
         return self
 
     # 行操作：向下复制
@@ -101,24 +104,34 @@ class ExcelStyleValue:
         return self
 
     # sheet操作：拷贝
-    def batch_copy_sheet(self, new_name_list: typing.List[str], del_old=False):
+    def batch_copy_sheet(self, new_name_list: typing.List[str], append=True, del_old=False):
         """拷贝当前sheet到excel的最后（可以批量拷贝
         :param new_name_list: 可以拷贝多份
+        :param append: 如果为True，往后拷贝，结束后，最后一个是activate的；如果是False，从第一个往前拷贝，结束后第一个是activate的
         :param del_old: 如果为True，拷贝完删除老的（剪切）
         :return:
         """
-        for name in new_name_list:
-            self.sht.api.Copy(After=self.wb.sheets[-1].api)
-            self.wb.sheets[-1].name = name
-            self.shts.append(self.wb.sheets[-1])
         old_sheet_name = self.sht.name
+        if append:
+            for name in new_name_list:
+                self.sht.api.Copy(After=self.wb.sheets[-1].api)
+                self.wb.sheets[-1].name = name
+                self.shts.append(self.wb.sheets[-1])
+            self.sht = self.wb.sheets[-1]
+        else:
+            for name in new_name_list:
+                self.sht.api.Copy(Before=self.wb.sheets[0].api)
+                self.wb.sheets[0].name = name
+                self.shts.append(self.wb.sheets[0])
+            self.sht = self.wb.sheets[0]
         if del_old:
             self.batch_delete_sheet([old_sheet_name])
-        self.sht = self.wb.sheets[-1]
         return self
 
     def switch_sheet(self, sheet_name_or_index: SHEET_TYPE):
         self.sht = self.wb.sheets[sheet_name_or_index]
+        # 这里无法使用activate，需要excel可见
+        # self.wb.sheets[sheet_name_or_index].activate()
         return self
 
     # sheet操作：删除

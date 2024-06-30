@@ -1,4 +1,4 @@
-from lwx_project.scene.daily_report.const import DAILY_REPORT_SOURCE_TEMPLATE_PATH, EXCEL_PIC_MARCO
+from lwx_project.scene.daily_report.const import *
 from lwx_project.utils.excel_macro import call_excel_macro
 
 

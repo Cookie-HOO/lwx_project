@@ -104,7 +104,7 @@ def split_files(officer: str, company_list: typing.List[str], df_text, df_value)
         .set_cell((1, 1), f"{today.last_season_char_with_year_num}产品后评价表")\
         .set_cell((2, 1), f"日期：{today.last_season_last_day_num[:4]}0101-{today.last_season_last_day_num}   机构：总行   货币单位：万元   统计渠道：全部")\
         .set_cell((3, 1), f"【评价】")\
-        .batch_copy_sheet(company_list, del_old=True)\
+        .batch_copy_sheet(company_list, append=False, del_old=True)\
         .for_each(lambda company: esv.set_cell((4, 1), df_text[df_text["实际简称"] == company]["评价1"].item())) \
         .for_each(lambda company: esv.set_cell((5, 1), df_text[df_text["实际简称"] == company]["评价2"].item())) \
         .for_each(lambda company: esv.set_cell((6, 1), df_text[df_text["实际简称"] == company]["评价3"].item())) \
@@ -112,20 +112,18 @@ def split_files(officer: str, company_list: typing.List[str], df_text, df_value)
         .for_each(lambda company: esv.set_cell((14, 1), company)) \
         .for_each(lambda company: esv.set_cell((20, 1), company)) \
         .for_each(lambda company: product_rows(company, df_value, esv))\
-        .switch_sheet(0)\
-        .save("new.xlsx")
-    raise  # 调试单文件
+        .save()
     pass
 
 
 def product_rows(company, df_value, esv):
     df_value = df_value[df_value["保险公司"] == company]
-    has_baoixan_fee = grouped_product(df_value[df_value["__保险类型"] == "有保费"]).sort_values('保费', ascending=False).reset_index()
-    tuanti = grouped_product(df_value[df_value["__保险类型"] == "团体"]).sort_values('保费', ascending=False).reset_index()
-    no_baoixan_fee = grouped_product(df_value[df_value["__保险类型"] == "无保费"]).sort_values('保费', ascending=False).reset_index()
+    has_baoixan_fee = df_value[df_value["__保险类型"] == "有保费"].sort_values('保费', ascending=False).reset_index()
+    tuanxian = df_value[df_value["__保险类型"] == "团险"].sort_values('保费', ascending=False).reset_index()
+    no_baoixan_fee = df_value[df_value["__保险类型"] == "无保费"].sort_values('保费', ascending=False).reset_index()
 
     has_baoixan_fee["序号"] = has_baoixan_fee.index + 1
-    tuanti["序号"] = tuanti.index + 1
+    tuanxian["序号"] = tuanxian.index + 1
     no_baoixan_fee["序号"] = no_baoixan_fee.index + 1
     final_list = ['保险公司', '序号', '险种名称', '期数', '保费', '截止上季度实现保费', '险种代码', '保险责任分类',
                   '保险责任子分类', '保险期限', '缴费期间',
@@ -139,42 +137,30 @@ def product_rows(company, df_value, esv):
                
         # 保险公司	序号	险种名称	2022年产品目录第几期	保费	其中：一、二季度保费	险种代码	保险责任分类	保险责任子分类	保险期限	缴费期间	总笔数	犹撤保费	退保保费	本期实现手续费收入
     """
-
-    # 计算开始复制的行数
+    # 有保费
     has_baoixan_fee_length = len(has_baoixan_fee)
-    tuanti_lenth = len(tuanti)
-    no_baoxian_fee_length = len(no_baoixan_fee)
-
-    has_baoixan_fee_start = 8
-    tuanti_start = has_baoixan_fee_start + has_baoixan_fee_length - 1 + 6 if has_baoixan_fee_length > 1 else has_baoixan_fee_start + 6
-    no_baoxian_fee_start = tuanti_start + tuanti_lenth - 1 + 6 if tuanti_lenth > 1 else tuanti_start + 6
-
+    has_baoixan_fee_start = 8  # 数据开始
+    has_baoixan_fee_end = has_baoixan_fee_start + has_baoixan_fee_length - 1  # 数据结束
     esv\
-        .copy_row_down(has_baoixan_fee_start, len(has_baoixan_fee)-1, set_df=has_baoixan_fee[final_list], limit=len(has_baoixan_fee))\
-    # esv\
-    #     .batch_delete_row(start_row_num=7, end_row_num=11, limit=not len(has_baoixan_fee))\
-    #     .batch_delete_row(start_row_num=12, end_row_num=17, limit=not len(tuanti))\
-    #     .batch_delete_row(start_row_num=18, end_row_num=20, limit=not len(no_baoixan_fee))\
-    #     .copy_row_down(has_baoixan_fee_start, len(has_baoixan_fee)-1, set_df=has_baoixan_fee[final_list], limit=len(has_baoixan_fee))\
-    #     .copy_row_down(tuanti_start, len(tuanti)-1, set_df=tuanti[final_list], limit=len(tuanti))\
-    #     .copy_row_down(no_baoxian_fee_start, len(no_baoixan_fee)-1, set_df=no_baoixan_fee[final_list], limit=len(no_baoixan_fee))\
+        .set_cell((6, 1), "", limit=not has_baoixan_fee_length)\
+        .copy_row_down(has_baoixan_fee_start, has_baoixan_fee_length-1, set_df=has_baoixan_fee[final_list], limit=has_baoixan_fee_length)\
+        .batch_delete_row(7, 11, limit=not has_baoixan_fee_length)\
+        .merge_cell((has_baoixan_fee_start, 1), (has_baoixan_fee_end, 1), limit=has_baoixan_fee_length > 1)
 
+    # 团险
+    tuanxian_lenth = len(tuanxian)
+    tuanxian_start = has_baoixan_fee_start + has_baoixan_fee_length - 1 + 3 + 3 if has_baoixan_fee_length else 9
+    tuanxian_end = tuanxian_start + tuanxian_lenth - 1
+    esv\
+        .copy_row_down(tuanxian_start, tuanxian_lenth-1, set_df=tuanxian[final_list], limit=tuanxian_lenth)\
+        .batch_delete_row(tuanxian_start-2, tuanxian_start+3, limit=not tuanxian_lenth)\
+        .merge_cell((tuanxian_start, 1), (tuanxian_end, 1), limit=tuanxian_lenth > 1)
 
-
-def grouped_product(df):
-    """将产品groupby，数字类型的求和，非数字类型的取第一个（应该都一样）"""
-    return df.groupby("险种名称", as_index=False).agg({
-        "保险公司": "first",
-        "期数": "first",
-        "保费": "sum",
-        "截止上季度实现保费": "sum",
-        "险种代码": "first",
-        "保险责任分类": "first",
-        "保险责任子分类": "first",
-        "保险期限": "first",
-        "缴费期间": "sum",
-        "总笔数": "sum",
-        "犹撤保费": "sum",
-        "退保保费": "sum",
-        "本期实现手续费收入": "sum",
-    })
+    # 无保费
+    no_baoxian_fee_length = len(no_baoixan_fee)
+    no_baoxian_fee_start = tuanxian_start - 1 + tuanxian_lenth + 3 + 3 if tuanxian_lenth else tuanxian_start
+    no_baoxian_fee_end = no_baoxian_fee_start + no_baoxian_fee_length - 1
+    esv\
+        .copy_row_down(no_baoxian_fee_start, no_baoxian_fee_length-1, set_df=no_baoixan_fee[final_list], limit=no_baoxian_fee_length)\
+        .batch_delete_row(no_baoxian_fee_start-2, no_baoxian_fee_start+3, limit=not no_baoxian_fee_length)\
+        .merge_cell((no_baoxian_fee_start, 1), (no_baoxian_fee_end, 1), limit=no_baoxian_fee_length > 1)

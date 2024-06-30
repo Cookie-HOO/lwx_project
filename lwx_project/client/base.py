@@ -1,5 +1,6 @@
 import json
 import traceback
+import typing
 
 from PyQt5.QtCore import pyqtSignal, QThread, QTimer, QTime
 from PyQt5.QtWidgets import QWidget, QLabel, QMainWindow, QMessageBox, QListWidget, QFileDialog, QApplication
@@ -8,6 +9,7 @@ from PyQt5.QtGui import QPixmap
 from lwx_project.client.const import *
 from lwx_project.client.utils.exception import ClientWorkerException
 from lwx_project.client.utils.message_widget import TipWidgetWithCountDown
+from lwx_project.utils.file import get_file_name_without_extension
 from lwx_project.utils.logger import logger_sys_error
 
 
@@ -122,11 +124,12 @@ class BaseWindow(QMainWindow):
             TipWidgetWithCountDown(msg=msg, count_down=count_down)
 
     # 上传
-    def upload_file_modal(self, patterns, multi=False):
+    def upload_file_modal(self, patterns, multi=False, required_base_name_list=None) -> typing.Union[str, list]:
         """
         :param patterns:
             [(pattern_name, pattern), (pattern_name, pattern)]  ("Excel Files", "*.xls*")
         :param multi: 是否支持多选
+        :param required_base_name_list: 必須有的内容,，注意这个参数的元素不含后缀
         :return:
         """
         if len(patterns) == 2 and isinstance(patterns[0], str):
@@ -135,6 +138,15 @@ class BaseWindow(QMainWindow):
         pattern_str = ";;".join([f"{pattern_name} ({pattern})" for pattern_name, pattern in patterns])
         func = QFileDialog.getOpenFileNames if multi else QFileDialog.getOpenFileName
         file_name_or_list, _ = func(self, "QFileDialog.getOpenFileName()", "", pattern_str, options=options)
+
+        # 处理必须要包含某些required_base_name的情况
+        required_list = required_base_name_list or []
+        file_name_list = file_name_or_list if isinstance(file_name_or_list, list) else [file_name_or_list]
+        file_name_base_names = [get_file_name_without_extension(file_name) for file_name in file_name_list]
+        for required in required_list:
+            if required not in file_name_base_names:
+                self.modal("warn", f"请包含{required}文件")
+                return []
         return file_name_or_list
 
     # 下载
