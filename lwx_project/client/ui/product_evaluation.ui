@@ -158,12 +158,12 @@ QPushButton:pressed {
         <item>
          <widget class="QLabel" name="label_3">
           <property name="text">
-           <string>文件</string>
+           <string>上传的文件</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QListWidget" name="file_date_value"/>
+         <widget class="QListWidget" name="file_list"/>
         </item>
        </layout>
       </item>
@@ -172,16 +172,22 @@ QPushButton:pressed {
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_2">
           <item>
-           <widget class="QPushButton" name="motto_change_button">
+           <widget class="QCheckBox" name="only_has_fee_checkbox">
             <property name="text">
-             <string>生成你的名言警句</string>
+             <string>只展示有保费</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="copy_summary_button">
+           <widget class="QCheckBox" name="only_no_term_checkbox">
             <property name="text">
-             <string>复制文本</string>
+             <string>只展示无法匹配</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -189,6 +195,13 @@ QPushButton:pressed {
         </item>
         <item>
          <widget class="QTableWidget" name="term_match_table_value"/>
+        </item>
+        <item>
+         <widget class="QPushButton" name="confirm_term_button">
+          <property name="text">
+           <string>期数确认（继续执行）</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>
@@ -218,7 +231,7 @@ QPushButton:pressed {
      <item>
       <widget class="QTabWidget" name="config_tab">
        <property name="currentIndex">
-        <number>0</number>
+        <number>2</number>
        </property>
        <widget class="QWidget" name="tab">
         <attribute name="title">
@@ -260,44 +273,10 @@ QPushButton:pressed {
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_2">
          <item>
-          <widget class="QListView" name="term_match_unimportant_list"/>
+          <widget class="QListWidget" name="term_match_unimportant_list"/>
          </item>
          <item>
           <widget class="QPushButton" name="save_term_match_unimportant_list_button">
-           <property name="text">
-            <string>保存</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="tab_4">
-        <attribute name="title">
-         <string>评价模板</string>
-        </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout_7">
-         <item>
-          <widget class="QTextBrowser" name="evaluation_template_value"/>
-         </item>
-         <item>
-          <widget class="QPushButton" name="save_evaluation_template_value_button">
-           <property name="text">
-            <string>保存</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="tab_3">
-        <attribute name="title">
-         <string>文件名模板</string>
-        </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout_8">
-         <item>
-          <widget class="QTextBrowser" name="file_name_template_value"/>
-         </item>
-         <item>
-          <widget class="QPushButton" name="save_file_name_template_value_button">
            <property name="text">
             <string>保存</string>
            </property>

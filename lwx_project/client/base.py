@@ -1,16 +1,19 @@
 import json
+import shutil
 import traceback
 import typing
 
 from PyQt5.QtCore import pyqtSignal, QThread, QTimer, QTime
-from PyQt5.QtWidgets import QWidget, QLabel, QMainWindow, QMessageBox, QListWidget, QFileDialog, QApplication
+from PyQt5.QtWidgets import QWidget, QLabel, QMainWindow, QMessageBox, QListWidget, QFileDialog, QApplication, \
+    QListView, QTextBrowser, QTableWidget
 from PyQt5.QtGui import QPixmap
 
 from lwx_project.client.const import *
 from lwx_project.client.utils.exception import ClientWorkerException
 from lwx_project.client.utils.message_widget import TipWidgetWithCountDown
-from lwx_project.utils.file import get_file_name_without_extension
+from lwx_project.utils.file import get_file_name_without_extension, copy_file, get_file_name_with_extension, make_zip
 from lwx_project.utils.logger import logger_sys_error
+from lwx_project.utils.time_obj import TimeObj
 
 
 class Background(QWidget):
@@ -42,6 +45,11 @@ class BaseWorker(QThread):
     # 链式添加参数
     def add_param(self, param_key, param_value):
         setattr(self, param_key, param_value)
+        return self
+
+    def add_params(self, param_dict):
+        for param_key, param_value in param_dict.items():
+            setattr(self, param_key, param_value)
         return self
 
     # 获取参数
@@ -124,21 +132,25 @@ class BaseWindow(QMainWindow):
             TipWidgetWithCountDown(msg=msg, count_down=count_down)
 
     # 上传
-    def upload_file_modal(self, patterns, multi=False, required_base_name_list=None) -> typing.Union[str, list]:
+    def upload_file_modal(self, patterns=("Excel Files", "*.xlsx"), multi=False, required_base_name_list=None, copy_to: str = None) -> typing.Union[str, list, None]:
         """
         :param patterns:
             [(pattern_name, pattern), (pattern_name, pattern)]  ("Excel Files", "*.xls*")
         :param multi: 是否支持多选
-        :param required_base_name_list: 必須有的内容,，注意这个参数的元素不含后缀
+        :param required_base_name_list: 上传的文件必須有的文件名,，注意这个参数的元素不含后缀且没有路径，只有文件名
+        :param copy_to: 如果制定了这个参数，会将上传的文件一并拷贝到这个路径
         :return:
         """
+        if copy_to:
+            self.clear_tmp_and_copy_important(tmp_path=copy_to)
         if len(patterns) == 2 and isinstance(patterns[0], str):
             patterns = [patterns]
         options = QFileDialog.Options()
         pattern_str = ";;".join([f"{pattern_name} ({pattern})" for pattern_name, pattern in patterns])
         func = QFileDialog.getOpenFileNames if multi else QFileDialog.getOpenFileName
         file_name_or_list, _ = func(self, "QFileDialog.getOpenFileName()", "", pattern_str, options=options)
-
+        if not file_name_or_list:
+            return None
         # 处理必须要包含某些required_base_name的情况
         required_list = required_base_name_list or []
         file_name_list = file_name_or_list if isinstance(file_name_or_list, list) else [file_name_or_list]
@@ -147,6 +159,12 @@ class BaseWindow(QMainWindow):
             if required not in file_name_base_names:
                 self.modal("warn", f"请包含{required}文件")
                 return []
+
+        # 如果指定了路径，将所有文件拷贝过去
+        if copy_to:
+            for file_name in file_name_list:
+                new_path = os.path.join(copy_to, get_file_name_with_extension(file_name))
+                copy_file(file_name, new_path)
         return file_name_or_list
 
     # 下载
@@ -157,10 +175,31 @@ class BaseWindow(QMainWindow):
                                                    f"All Files (*);;Text Files (*.{suffix})", options=options)
         return file_path
 
+    def download_zip_from_path(self, path, default_topic):
+        file_path = self.download_file_modal(f"{TimeObj().time_str}_{default_topic}.zip")
+        if not file_path:
+            return
+        make_zip(path, file_path.rstrip(".zip"))
+
+    # copy_file(DAILY_REPORT_RESULT_TEMPLATE_PATH, filePath)
+
     # 复制
     @staticmethod
     def copy2clipboard(text: str):
         QApplication.clipboard().setText(text)
+
+    @staticmethod
+    def clear_tmp_and_copy_important(tmp_path=None, important_path=None):
+        # 1. 创建路径
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path, exist_ok=True)
+        if important_path:
+            # 2. 拷贝关键文件到tmp路径
+            for file in os.listdir(important_path):
+                if not file.startswith("~") and (file.endswith("xlsx") or file.endswith("xlsm")):
+                    old_path = os.path.join(important_path, file)
+                    new_path = os.path.join(tmp_path, file)
+                    copy_file(old_path, new_path)
 
     ############ wrapper类函数: 函数式编程思想,减少代码 ############
     def func_modal_wrapper(self, msg, func, *args, **kwargs):
@@ -268,3 +307,13 @@ class WindowWithMainWorker(BaseWindow):
     # 生命周期: worker停止前
     def before_finished(self):
         self.set_status_success()
+
+    # 工具函数
+    def download_zip_from_path(self, path, default_topic, exclude=None):
+        """下载结果文件
+        :return:
+        """
+        # 弹出一个文件保存对话框，获取用户选择的文件路径
+        if not self.is_success:
+            return self.modal("info", "请先执行或等待任务完成..." + self.status_text)
+        super().download_zip_from_path(path, default_topic)

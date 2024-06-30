@@ -7,8 +7,8 @@ from PyQt5.QtGui import QPen, QColor
 
 from lwx_project.client.base import BaseWindow
 from lwx_project.client.const import UI_PATH, COLOR_WHITE, COLOR_RED, COLOR_GREEN
-from lwx_project.client.utils import table_widget
 from lwx_project.client.utils.graph_widget import GraphWidgetWrapper
+from lwx_project.client.utils.table_widget import TableWidgetWrapper
 from lwx_project.scene import contribution
 from lwx_project.utils.logger import logger_sys_error
 
@@ -36,15 +36,15 @@ from lwx_project.utils.logger import logger_sys_error
 """
 
 
-def style_func(df, i, j):
+def cell_style_func(df, i, j) -> QColor:
     contribution_value = df["贡献率"][i]
     contribution_value = float(str(contribution_value).strip("%") or 0)
     if math.isclose(contribution_value, 0) or len(df) == i+1:
-        return QColor(*COLOR_WHITE)
+        return COLOR_WHITE
     elif contribution_value > 0:
-        return QColor(*COLOR_RED)
+        return COLOR_RED
     elif contribution_value < 0:
-        return QColor(*COLOR_GREEN)
+        return COLOR_GREEN
 
 
 class MyContributionClient(BaseWindow):
@@ -58,6 +58,8 @@ class MyContributionClient(BaseWindow):
         self.upload_table_button.clicked.connect(self.upload_file)  # 将按钮的点击事件连接到upload_file方法
         self.download_table_button.clicked.connect(self.download_file)  # 将按钮的点击事件连接到upload_file方法
         self.alpha_slider.valueChanged.connect(self.alpha_changed)
+
+        self.table_widget_wrapper = TableWidgetWrapper(self.table_value)
 
     def upload_file(self):
         file_name = self.upload_file_modal(("Excel Files", "*.xlsx"), multi=False)
@@ -73,7 +75,8 @@ class MyContributionClient(BaseWindow):
         if df["公司"].values[-1] == "合计":
             df = df.drop(df.index[-1])  # 取消最后一行总计
         self.df = df[cols]  # 将处理完的结果挂到self上
-        table_widget.fill_data(self.table_value, self.df)
+        self.table_widget_wrapper.fill_data_with_color(self.df)
+        # table_widget.fill_data(self.table_value, self.df)
 
     def download_file(self):
         # 询问是否包含均值公司
@@ -86,7 +89,7 @@ class MyContributionClient(BaseWindow):
             return
         # 保存
         if with_mean:  # 包含均值公司（当前表格中显示的）
-            df = table_widget.get_data(self.table_value)
+            df = self.table_widget_wrapper.get_data_as_df()
             df.to_excel(file_path, index=False)
         else:
             self.df_download.to_excel(file_path, index=False)
@@ -98,7 +101,8 @@ class MyContributionClient(BaseWindow):
         if self.df is not None:
             # 生成表格
             df, self.df_download = contribution.main_with_args(self.df, alpha)
-            table_widget.fill_data(self.table_value, df, style_func)
+            self.table_widget_wrapper.fill_data_with_color(df, cell_style_func=cell_style_func)
+            # table_widget.fill_data(self.table_value, df, style_func)
             company_value = df["公司"].tolist()
             contribution_value = df["贡献率"].tolist()
             contribution_num = df["__贡献率"]

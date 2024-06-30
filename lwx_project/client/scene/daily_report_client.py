@@ -175,13 +175,13 @@ class MyDailyReportClient(WindowWithMainWorker):
         date_file_names = []
         for base_name, file_name in zip(base_names, file_names):
             if base_name == UPLOAD_IMPORTANT_FILE:
-                colors.append(QColor(*COLOR_RED))
+                colors.append(COLOR_RED)
                 important_file_names.append(file_name)
             elif base_name in UPLOAD_REQUIRED_FILES:
-                colors.append(QColor(*COLOR_GREEN))
+                colors.append(COLOR_GREEN)
                 important_file_names.append(file_name)
             else:
-                colors.append(QColor(*COLOR_WHITE))
+                colors.append(COLOR_WHITE)
                 date_file_names.append(file_name)
         fill_data(list_widget=self.file_date_value, items=base_names, colors=colors)
 

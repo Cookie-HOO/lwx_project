@@ -4,13 +4,13 @@ import typing
 import pandas as pd
 
 from lwx_project.scene.product_evaluation.const import EXCEL_TEMPLATE_PATH, OFFICER_COMPANY_PATH, DATA_TMP_PATH, \
-    OFFICER_COMPANY_FILE, FEE_IN_SEASON_BEFORE
+    OFFICER_COMPANY_FILE_NAME_TEMPLATE, FEE_IN_SEASON_BEFORE
 from lwx_project.utils.excel_style import ExcelStyleValue
 from lwx_project.utils.file import copy_file
 from lwx_project.utils.time_obj import TimeObj
 
 
-def main(df_text, df_value):
+def main(df_text, df_value, officer=None):
     """按人员生成excel，每个excel有特定的公司
     一个人一个excel
     每个excel中有一些sheet
@@ -19,11 +19,12 @@ def main(df_text, df_value):
         实际简称   ｜   评价
     :param df_value: 生成sheet的数据
         ['险种名称', '保险公司', '保费', '险种代码', '保险责任分类', '保险责任子分类', '保险期限', '缴费期间',
-               '总笔数', '犹撤保费', '退保保费', '本期实现手续费收入', '产品目录统计', '__保险类型', '期数',
+               '总笔数', '犹撤保费', '退保保费', '本期实现手续费收入', '产品目录统计', '保险类型', '期数',
                '截止上季度实现保费']
         其中：
             保险公司就是实际简称
             截止上季度实现保费     需要用一个变化的列名字替代
+    :param officer:  指定人员，只做这一个人的
 
     :return:
     """
@@ -45,6 +46,8 @@ def main(df_text, df_value):
         .save()
     officer_company_df = pd.read_csv(OFFICER_COMPANY_PATH)
     """人员、公司"""
+    if officer:
+        officer_company_df = officer_company_df[officer_company_df["人员"] == officer]
     grouped = officer_company_df.groupby(by="人员", as_index=False).agg(list)
     grouped.apply(lambda row: split_files(row["人员"], row["公司"], df_text, df_value), axis=1)
 
@@ -93,7 +96,7 @@ def split_files(officer: str, company_list: typing.List[str], df_text, df_value)
         """
     # 1. 拷贝一个模板出来
     today = TimeObj()
-    new_file_name = OFFICER_COMPANY_FILE.format(officer=officer, last_season_char_with_year_num=today.last_season_char_with_year_num)
+    new_file_name = OFFICER_COMPANY_FILE_NAME_TEMPLATE.format(officer=officer, last_season_char_with_year_num=today.last_season_char_with_year_num)
     new_file_path = os.path.join(DATA_TMP_PATH, new_file_name)
     copy_file(EXCEL_TEMPLATE_PATH, new_file_path)
 
@@ -118,9 +121,9 @@ def split_files(officer: str, company_list: typing.List[str], df_text, df_value)
 
 def product_rows(company, df_value, esv):
     df_value = df_value[df_value["保险公司"] == company]
-    has_baoixan_fee = df_value[df_value["__保险类型"] == "有保费"].sort_values('保费', ascending=False).reset_index()
-    tuanxian = df_value[df_value["__保险类型"] == "团险"].sort_values('保费', ascending=False).reset_index()
-    no_baoixan_fee = df_value[df_value["__保险类型"] == "无保费"].sort_values('保费', ascending=False).reset_index()
+    has_baoixan_fee = df_value[df_value["保险类型"] == "有保费"].sort_values('保费', ascending=False).reset_index()
+    tuanxian = df_value[df_value["保险类型"] == "团险"].sort_values('保费', ascending=False).reset_index()
+    no_baoixan_fee = df_value[df_value["保险类型"] == "无保费"].sort_values('保费', ascending=False).reset_index()
 
     has_baoixan_fee["序号"] = has_baoixan_fee.index + 1
     tuanxian["序号"] = tuanxian.index + 1
@@ -132,7 +135,7 @@ def product_rows(company, df_value, esv):
         final_list.remove('截止上季度实现保费')
     """
             ['险种名称', '保险公司', '保费', '险种代码', '保险责任分类', '保险责任子分类', '保险期限', '缴费期间',
-               '总笔数', '犹撤保费', '退保保费', '本期实现手续费收入', '产品目录统计', '__保险类型', '期数',
+               '总笔数', '犹撤保费', '退保保费', '本期实现手续费收入', '产品目录统计', '保险类型', '期数',
                '截止上季度实现保费']
                
         # 保险公司	序号	险种名称	2022年产品目录第几期	保费	其中：一、二季度保费	险种代码	保险责任分类	保险责任子分类	保险期限	缴费期间	总笔数	犹撤保费	退保保费	本期实现手续费收入

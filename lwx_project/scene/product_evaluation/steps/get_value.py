@@ -3,6 +3,7 @@ import re
 import pandas as pd
 
 from lwx_project.scene.product_evaluation.const import *
+from lwx_project.utils.conf import get_txt_conf, get_csv_conf
 from lwx_project.utils.strings import replace_parentheses_and_comma
 from lwx_project.utils.time_obj import TimeObj
 
@@ -83,7 +84,7 @@ def match_term_num(raw_xianzhong_name, baoxian_type, abbr_2, abbr_4, yinbao_and_
     if len(result) > 0:
         return result.iloc[0]["期数"]
 
-    # 3. in匹配：简称问题
+    # 3. in匹配：简称问题，两个字的简称换成4个字的简称
     if isinstance(abbr_2, str) and isinstance(abbr_4, str):
         if xianzhong_name.startswith(abbr_2):
             xianzhong_name = abbr_4 + xianzhong_name[len(abbr_2):]
@@ -98,9 +99,8 @@ def match_term_num(raw_xianzhong_name, baoxian_type, abbr_2, abbr_4, yinbao_and_
 
     # 4. in匹配：可有可无的内容: {保险产品}、{计划}、{年金}、{年金保险}、{分红}
     # 统一小括号，删除逗号
-    xianzhong_name_uni_parentheses = raw_xianzhong_name.replace(",", "").replace("，", "").replace("(", "（").replace(")", "）")
-    xianzhong_name_strip = xianzhong_name_uni_parentheses
-    for pattern in OPTIONAL_PATTERN:
+    xianzhong_name_strip = xianzhong_name
+    for pattern in get_txt_conf(TERM_MATCH_UNIMPORTANT_PATTERN_PATH, list):
         xianzhong_name_strip = delete_term_notin_parentheses(xianzhong_name_strip, pattern=pattern)
 
     result = df_strip[df_strip['产品名称'].str.contains(xianzhong_name_strip)]
@@ -108,12 +108,23 @@ def match_term_num(raw_xianzhong_name, baoxian_type, abbr_2, abbr_4, yinbao_and_
         return result.iloc[0]["期数"]
     elif len(result) > 1:
         # 如果多于一个需要交给用户判断（在client中）
-        pass
+        return EMPTY_TERM_PLACE_HOLDER  # bad path 由用户判断
 
+    # 4. 用户自己维护的等价字典：险种名称可以换
+    df_equal = get_csv_conf(TERM_MATCH_EQUAL_PAIR_PATH)  # 词语 | 等价
+    dict1 = df_equal.set_index('词语')['等价'].to_dict()
+    dict2 = df_equal.set_index('等价')['词语'].to_dict()
+    equal_dict = {**dict1, **dict2}
+    xianzhong_name_replace = xianzhong_name
+    for w1, w2 in equal_dict.items():
+        xianzhong_name_replace = xianzhong_name_replace.replace(w1, w2)
+        result = df_strip[df_strip['产品名称'].str.contains(xianzhong_name_replace)]
+        if len(result) == 1:
+            return result.iloc[0]["期数"]
+        elif len(result) > 1:
+            # 如果多于一个需要交给用户判断（在client中）
+            return EMPTY_TERM_PLACE_HOLDER  # bad path 由用户判断
     # 其他情况目前找不到，由用户判断
-    # 5. 用户自己维护的等价字典
-    #  - A -> B  TODO   新华保险 -> 新华人寿  很多钱
-    pass
     return EMPTY_TERM_PLACE_HOLDER
 
 
@@ -147,7 +158,7 @@ def main(df):
     # 3.存储有保费、无保费、团险三种类型
     all_tuanxian_product_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="团险", skiprows=1)
     all_tuanxian_product = all_tuanxian_product_df["产品名称"].dropna().values
-    df_for_value_group["__保险类型"] = df_for_value_group.apply(lambda x: get_baoxian_type(x, all_tuanxian_product), axis=1)
+    df_for_value_group["保险类型"] = df_for_value_group.apply(lambda x: get_baoxian_type(x, all_tuanxian_product), axis=1)
 
     # 4. 寻找期数（只有有保费的需要找期数）
     df_for_value_group["期数"] = ""
@@ -163,9 +174,9 @@ def main(df):
     yinbao_and_sihang["期数"] = yinbao_and_sihang["期数"].apply(lambda x: x.split("\n")[0])
     # todo: 这里可以优化，先找到所有有保费的再参与计算
     # 参考：df.loc[df['age'] >= 30, 'salary'] = df.loc[df['age'] >= 30, 'salary'].apply(lambda x: x**2)
-    df_for_value_group["期数"] = df_for_value_group.apply(lambda x: match_term_num(x["险种名称"], x["__保险类型"], x["产品目录统计"], x["保险公司"], yinbao_and_sihang), axis=1)
-    # has_fee = df_for_value_group[df_for_value_group["__保险类型"] == '有保费']
-    # has_fee["期数"] = has_fee.apply(lambda x: math_term_num(x["__保险类型"], x["产品目录统计"], x["保险公司"], yinbao_and_sihang), axis=1)
+    df_for_value_group["期数"] = df_for_value_group.apply(lambda x: match_term_num(x["险种名称"], x["保险类型"], x["产品目录统计"], x["保险公司"], yinbao_and_sihang), axis=1)
+    # has_fee = df_for_value_group[df_for_value_group["保险类型"] == '有保费']
+    # has_fee["期数"] = has_fee.apply(lambda x: math_term_num(x["保险类型"], x["产品目录统计"], x["保险公司"], yinbao_and_sihang), axis=1)
 
     no = df_for_value_group[df_for_value_group["期数"] == EMPTY_TERM_PLACE_HOLDER]
 

@@ -1,3 +1,5 @@
+import pandas as pd
+
 from lwx_project.const import *
 
 
@@ -27,13 +29,21 @@ def get_txt_conf(path, type_=str):
         return result
     elif type_ == list:
         with open(path, encoding="utf8") as f:
-            result = [i.strip("\n") for i in f.readlines() if i]
+            result = [i.strip("\n") for i in f.readlines() if i.strip("\n")]
         return result
 
 
 def set_txt_conf(path, value):
     with open(path, "w", encoding="utf8") as f:
         f.write(value)
+
+
+def get_csv_conf(path):
+    return pd.read_csv(path, encoding="utf-8")
+
+
+def set_csv_conf(path, value: pd.DataFrame):
+    value.to_csv(path, encoding="utf-8", index=False)
 
 
 if __name__ == '__main__':
