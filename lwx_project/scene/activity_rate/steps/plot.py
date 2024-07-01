@@ -11,7 +11,7 @@ from lwx_project.utils.time_obj import TimeObj
 def main():
     df = pd.read_excel(ACTIVITY_PATH)
     today = TimeObj()
-    title = f"{{}}分行{today.month}月网点活动折线图"
+    title = f"{{}}分行6月期缴网点活动率折线图"
     df.apply(lambda x: plot(df.columns[1:], x.values[1:], title.format(x.values[0])), axis=1)
 
 
@@ -35,7 +35,7 @@ def plot(x, y, title):
     ax.axhline(y=0.2, color='r', linestyle='-')
 
     # 从0开始每隔2%画y_tick的灰色辅助线
-    y_ticks = np.arange(0, max(max(y) * 1.2, 0.2), 0.02)
+    y_ticks = np.arange(0, max(max(y) * 1.2, 0.21), 0.02)
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(['{:.0f}%'.format(i * 100) for i in y_ticks])
 
