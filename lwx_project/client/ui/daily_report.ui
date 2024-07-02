@@ -91,6 +91,16 @@
        </spacer>
       </item>
       <item>
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>今天是：</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QDateEdit" name="today_date"/>
+      </item>
+      <item>
        <widget class="QLabel" name="label">
         <property name="text">
          <string>当日包含</string>

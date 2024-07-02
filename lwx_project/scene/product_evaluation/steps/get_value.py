@@ -76,7 +76,7 @@ def match_term_num(raw_xianzhong_name, baoxian_type, abbr_2, abbr_4, yinbao_and_
     df_strip["产品名称"] = yinbao_and_sihang["产品名称"].apply(replace_parentheses_and_comma)
     xianzhong_name = replace_parentheses_and_comma(raw_xianzhong_name)
     term_num = df_strip[df_strip["产品名称"] == xianzhong_name]["期数"]
-    if term_num.values:
+    if len(term_num.values) > 0:
         return term_num.values[0]
 
     # 2. in匹配：完全在其中
@@ -164,10 +164,13 @@ def main(df):
     df_for_value_group["期数"] = ""
     yinbao_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="银保", skiprows=1)
     sihang_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="私行", skiprows=1)
+    gerenyanglaojin_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="个人养老金", skiprows=1)
+    # 将三个sheet作为匹配的表：todo: 改成配置
     yinbao_and_sihang = pd.concat(
         [
             yinbao_df.dropna(subset=["产品名称"])[["产品名称", "期数"]],
             sihang_df.dropna(subset=["产品名称"])[["产品名称", "期数"]],
+            gerenyanglaojin_df.dropna(subset=["产品名称"])[["产品名称", "期数"]],
         ],
         axis=0
     )
