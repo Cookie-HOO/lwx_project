@@ -9,7 +9,7 @@ from lwx_project.utils.file import copy_file
 from lwx_project.utils.time_obj import TimeObj
 
 
-def new_name_time(title, text_parts, old_name, date_equal_buffer) -> typing.List[str]:
+def new_name_time(title, text_parts, old_name, date_equal_buffer, report_date) -> typing.List[str]:
     # 当年 or 当季 or 当月 or 当日
     new_name_time_list = []
     if len(text_parts) > 0:
@@ -17,15 +17,15 @@ def new_name_time(title, text_parts, old_name, date_equal_buffer) -> typing.List
         start_end_time = time_str.lstrip("日期：").split("--")
         if len(start_end_time) == 2:
             start_time, end_time = start_end_time
-            start_time = TimeObj(raw_time_str=start_time, equal_buffer=date_equal_buffer)
-            end_time = TimeObj(raw_time_str=end_time, equal_buffer=date_equal_buffer)
+            start_time = TimeObj(raw_time=start_time, equal_buffer=date_equal_buffer, base_time=report_date)
+            end_time = TimeObj(raw_time=end_time, equal_buffer=date_equal_buffer, base_time=report_date)
             if start_time == end_time:
                 new_name_time_list.append("当日")
-            if start_time.is_first_day_of_this_month:
+            if start_time.is_first_day_of_base_month:
                 new_name_time_list.append("当月")
-            if start_time.is_first_day_of_this_season:
+            if start_time.is_first_day_of_base_season:
                 new_name_time_list.append("当季")
-            if start_time.is_first_day_of_this_year:
+            if start_time.is_first_day_of_base_year:
                 new_name_time_list.append("当年")
 
     return new_name_time_list
@@ -68,7 +68,7 @@ def get_key_text_parts(df):
     return res
 
 
-def get_new_name(df, old_name, date_equal_buffer) -> typing.List[str]:
+def get_new_name(df, old_name, date_equal_buffer, report_date) -> typing.List[str]:
     title = df.iloc[0, 0]
     key_text_parts = get_key_text_parts(df)
     if len(key_text_parts) >= 2:
@@ -81,11 +81,18 @@ def get_new_name(df, old_name, date_equal_buffer) -> typing.List[str]:
                          f".xlsx")
 
     return [
-        new_name_template.format(new_time=new_time) for new_time in new_name_time(title, key_text_parts, old_name, date_equal_buffer)
+        new_name_template.format(new_time=new_time) for new_time in new_name_time(title, key_text_parts, old_name, date_equal_buffer, report_date)
     ]
 
 
-def main(upload_excels_path=None, date_equal_buffer=0):
+def main(upload_excels_path=None, date_equal_buffer=0, report_date=None):
+    """
+    :param upload_excels_path: 所有需要重命名的文件
+    :param date_equal_buffer: 时间相等的buffer
+    :param report_date: 报表日期
+    :return:
+    """
+    report_date = report_date or TimeObj()-1
     name_dict = {}
     excels = upload_excels_path or os.listdir(DATA_PATH)
     for excel in excels:
@@ -96,7 +103,7 @@ def main(upload_excels_path=None, date_equal_buffer=0):
             except Exception as e:
                 print(f"error when loads: {old_excel_path}, {e}")
                 return
-            new_name_list: typing.List[str] = get_new_name(df, excel, date_equal_buffer)
+            new_name_list: typing.List[str] = get_new_name(df, excel, date_equal_buffer, report_date)
             for new_name in new_name_list:
                 copy_file(old_excel_path, os.path.join(DATA_TMP_PATH, new_name))
                 name_dict[new_name] = get_key_text_parts(df)[0]

@@ -1,3 +1,5 @@
+import typing
+
 import pandas as pd
 
 from lwx_project.const import *
@@ -46,7 +48,48 @@ def set_csv_conf(path, value: pd.DataFrame):
     value.to_csv(path, encoding="utf-8", index=False)
 
 
+class CSVConf:
+    def __init__(self, path, init_columns: list = None):
+        self.path = path
+        self.init_columns = init_columns
+        self.df = self.open_or_create()
+
+    def open_or_create(self):
+        if os.path.exists(self.path):
+            df = pd.read_csv(self.path, encoding="utf-8")
+        else:
+            if self.init_columns is None:
+                raise ValueError("No csv or init_columns")
+            df = pd.DataFrame(columns=self.init_columns)
+        return df
+
+    def save(self):
+        self.set(self.df)
+
+    def get(self):
+        return self.df
+
+    def set(self, value: pd.DataFrame):
+        self.df = value
+        value.to_csv(self.path, encoding="utf-8", index=False)
+
+    def clear(self):
+        self.df = self.df[0:0]
+        return self
+
+    def append(self, value: typing.Union[pd.DataFrame, typing.List[dict], dict]):
+        self.df = self.df.append(value, ignore_index=True)
+        return self
+
+    def dedup(self):
+        self.df = self.df.drop_duplicates()
+        return self
+
+
 if __name__ == '__main__':
-    print(get_yaml_conf("system", "window"))
-    set_yaml_conf("system", "developer", "fuyao.cookiee")
-    print(get_yaml_conf("system", "developer"))
+    # print(get_yaml_conf("system", "window"))
+    # set_yaml_conf("system", "developer", "fuyao.cookiee")
+    # print(get_yaml_conf("system", "developer"))
+
+    cc = CSVConf("hello.csv", init_columns=["C", "D"])
+    cc.append({"A": 3, "B": 4}).append({"A": 3, "B": 4}).append({"A": 5, "B": 6}).save()

@@ -91,23 +91,6 @@
        </spacer>
       </item>
       <item>
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>当日包含</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QSpinBox" name="equal_buffer_value"/>
-      </item>
-      <item>
-       <widget class="QLabel" name="label_2">
-        <property name="text">
-         <string>天</string>
-        </property>
-       </widget>
-      </item>
-      <item>
        <widget class="QCheckBox" name="run_mute_checkbox">
         <property name="text">
          <string>静默</string>

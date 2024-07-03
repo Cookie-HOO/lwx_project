@@ -1,60 +1,84 @@
 import datetime
 import math
+import re
+import typing
 
 from lwx_project.const import FULL_TIME_FORMATTER, DATE_FORMATTER, TIME_FORMATTER, POSITIVE_NUM_CHAR_MAPPING, \
     DATE_NUM_FORMATTER
 
 
 class TimeObj:
-    def __init__(self, raw_time_str=None, equal_buffer=0):
-        self.raw_time_str = raw_time_str
-        self.today = datetime.datetime.today()
-        self.equal_buffer = equal_buffer
+    def __init__(self, raw_time=None, **kwargs):
+        """
+        :param raw_time_str:
+        :param equal_buffer:
+
+        :param kwargs
+            :param base_time: 只在很少的时候会用到，当需要有另一个日期作为标杆时
+            :param equal_buffer: 只在很少的时候会用到，和另一个日期相比判断是否一致时
+        """
+        self._raw_time = raw_time
+        self.today = datetime.datetime.now()
+
+        self.equal_buffer = kwargs.get("equal_buffer", 0)
+        self.base_time = kwargs.get("base_time")
+        self.base_time_obj = None
+        if self.base_time:
+            self.base_time_obj = TimeObj(raw_time=self.base_time)
 
     @property
     def date_str(self):
-        if not self.raw_time_str:
+        if not self._raw_time:
             return self.today.strftime(DATE_FORMATTER)
-        time_str_ = self.raw_time_str
-        if self.raw_time_str.isdigit() and len(self.raw_time_str) == 8:
-            time_str_ = self.raw_time_str[:4] + "-" + self.raw_time_str[4:6] + "-" + self.raw_time_str[6:]
-        elif "年" in self.raw_time_str and "月" in self.raw_time_str and "日" in self.raw_time_str:
-            time_str_ = self.raw_time_str.replace("年", "-").replace("月", "-").replace("日", "")
-        return time_str_
+        if isinstance(self._raw_time, str):
+            # 2024-01-01
+            if re.match(r"\d{4}-\d{2}-\d{2}", self._raw_time):
+                return self._raw_time
+            # 20240101
+            elif self._raw_time.isdigit() and len(self._raw_time) == 8:
+                return self._raw_time[:4] + "-" + self._raw_time[4:6] + "-" + self._raw_time[6:]
+            # 2024年01月01日
+            elif "年" in self._raw_time and "月" in self._raw_time and "日" in self._raw_time:
+                return self._raw_time.replace("年", "-").replace("月", "-").replace("日", "")
+        elif isinstance(self._raw_time, (datetime.datetime, datetime.date)):
+            return self._raw_time.strftime(DATE_FORMATTER)
+        elif isinstance(self._raw_time, TimeObj):
+            return self._raw_time.date_str
+
+    @property
+    def time_obj(self) -> datetime.datetime:
+        return datetime.datetime.strptime(self.date_str, DATE_FORMATTER)
 
     @property
     def full_time_str(self):
-        if not self.raw_time_str:
-            return self.today.strftime(FULL_TIME_FORMATTER)
         return self.time_obj.strftime(FULL_TIME_FORMATTER)
 
     @property
     def time_str(self):
-        if not self.raw_time_str:
-            return self.today.strftime(TIME_FORMATTER)
         return self.time_obj.strftime(TIME_FORMATTER)
 
-    @property
-    def time_obj(self):
-        if not self.raw_time_str:
-            return self.today
-        return datetime.datetime.strptime(self.date_str, DATE_FORMATTER)
-
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return abs((self.time_obj - other.time_obj).days) <= self.equal_buffer
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> bool:
         return self.time_obj > other.time_obj
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         return self.time_obj < other.time_obj
+
+    def __sub__(self, other) -> typing.Union['TimeObj', int]:
+        if isinstance(other, int):
+            return TimeObj(raw_time=self.time_obj - datetime.timedelta(days=other))
+        elif isinstance(other, (datetime.datetime, datetime.date)):
+            return (self.time_obj - other).days
+
+    def __add__(self, other) -> typing.Union['TimeObj', int]:
+        if isinstance(other, int):
+            return TimeObj(raw_time=self.time_obj + datetime.timedelta(days=other))
 
     @property
     def month_day(self):
-        date_str = self.date_str
-        if not date_str:
-            return ""
-        return "-".join(date_str.split("-")[-2:])
+        return "-".join(self.date_str.split("-")[-2:])
 
     @property
     def year(self) -> int:
@@ -112,14 +136,14 @@ class TimeObj:
             return f"{self.year}年前三季度"
 
     @property
-    def is_first_day_of_this_year(self) -> bool:
-        return self.year == self.today.year and self.month == 1 and self.day == 1
+    def is_first_day_of_base_year(self) -> bool:
+        return self.year == self.base_time_obj.year and self.month == 1 and self.day == 1
 
     @property
-    def is_first_day_of_this_season(self) -> bool:
-        season_month = self.today.month - (self.today.month - 1) % 3
-        return self.year == self.today.year and self.month == season_month and self.day == 1
+    def is_first_day_of_base_season(self) -> bool:
+        season_month = self.base_time.month - (self.base_time.month - 1) % 3
+        return self.year == self.base_time_obj.year and self.month == season_month and self.day == 1
 
     @property
-    def is_first_day_of_this_month(self) -> bool:
-        return self.year == self.today.year and self.month == self.today.month and self.day == 1
+    def is_first_day_of_base_month(self) -> bool:
+        return self.year == self.base_time_obj.year and self.month == self.base_time_obj.month and self.day == 1

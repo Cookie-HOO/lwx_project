@@ -93,12 +93,16 @@
       <item>
        <widget class="QLabel" name="label_4">
         <property name="text">
-         <string>今天是：</string>
+         <string>报表日期</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QDateEdit" name="today_date"/>
+       <widget class="QDateEdit" name="report_date">
+        <property name="calendarPopup">
+         <bool>true</bool>
+        </property>
+       </widget>
       </item>
       <item>
        <widget class="QLabel" name="label">

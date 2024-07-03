@@ -17,7 +17,8 @@ LAST_TERM_PATH = os.path.join(DATA_TMP_PATH, "上期保费.xlsx")
 EXCEL_TEMPLATE_PATH = os.path.join(DATA_IMPORTANT_PATH, "模板.xlsm")
 OFFICER_COMPANY_PATH = os.path.join(DATA_IMPORTANT_PATH, "公司人员映射表.csv")
 TERM_MATCH_UNIMPORTANT_PATTERN_PATH = os.path.join(DATA_IMPORTANT_PATH, "期数匹配可删词.txt")
-TERM_MATCH_EQUAL_PAIR_PATH = os.path.join(DATA_IMPORTANT_PATH, "期数匹配等价词.csv")  # 词语 | 等价
+# TERM_MATCH_EQUAL_PAIR_PATH = os.path.join(DATA_IMPORTANT_PATH, "期数匹配等价词.csv")  # 词语 | 等价
+TERM_MATCH_PAIR_PATH = os.path.join(DATA_IMPORTANT_PATH, "产品期数匹配.csv")  # 产品 | 期数
 
 
 # product_type_count: 5款银保产品，0款私行产品，0款团险产品

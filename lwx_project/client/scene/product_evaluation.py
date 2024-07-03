@@ -1,6 +1,6 @@
 import pandas as pd
 from PyQt5 import uic
-from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QComboBox
 
 from lwx_project.client.base import BaseWorker, WindowWithMainWorker
@@ -8,13 +8,18 @@ from lwx_project.client.const import UI_PATH, COLOR_RED
 from lwx_project.client.utils.list_widget import ListWidgetWrapper
 from lwx_project.client.utils.table_widget import TableWidgetWrapper
 from lwx_project.scene.product_evaluation.const import *
-from lwx_project.scene.product_evaluation.main import before_run
 from lwx_project.scene.product_evaluation.steps import data_preprocess, get_text, get_value, split_sheet
-from lwx_project.utils.conf import set_csv_conf, set_txt_conf, get_csv_conf, get_txt_conf
+from lwx_project.utils.conf import set_csv_conf, set_txt_conf, get_csv_conf, get_txt_conf, CSVConf
+from lwx_project.utils.excel_checker import ExcelCheckWrapper
 from lwx_project.utils.file import get_file_name_without_extension
 from lwx_project.utils.my_itertools import dedup_list
+from lwx_project.utils.strings import replace_parentheses_and_comma
+from lwx_project.utils.time_obj import TimeObj
 
 UPLOAD_REQUIRED_FILES = ["产品目录", "分行代理保险产品分险种销售情况统计表", "对应表", "上期保费"]  # 上传的文件必须要有
+
+OFFICER_COMPANY_CONF = CSVConf(OFFICER_COMPANY_PATH, init_columns=["公司", "人员"])
+TERM_PAIR_CONF = CSVConf(TERM_MATCH_PAIR_PATH, init_columns=["产品", "期数"])
 
 
 class Worker(BaseWorker):
@@ -59,8 +64,6 @@ class MyProductEvaluationClient(WindowWithMainWorker):
             点击后展示高级配置
         company_officer_table_value: 配置：展示公司人员的映射关系，是一个table   company -> officer
             save_company_officer_table_button
-        term_match_equal_table_value: 配置：期数等价的映射，是一个table，before_word ->  after_word
-            save_term_match_equal_table_button
         term_match_unimportant_list_value: 配置：期数匹配中可以删除的内容，是一个text
             save_term_match_unimportant_list_button
 
@@ -90,8 +93,6 @@ class MyProductEvaluationClient(WindowWithMainWorker):
         # 0. 获取wrapper（组件转换） todo 后续考虑在基类中自动转
         # 配置：公司人员映射的wrapper
         self.company_officer_table_wrapper = TableWidgetWrapper(self.company_officer_table_value, add_rows_button=True, del_rows_button=True)
-        # 配置：匹配期数时等价字典，一行一个
-        self.term_match_equal_table_wrapper = TableWidgetWrapper(self.term_match_equal_table_value, add_rows_button=True, del_rows_button=True)
         # 配置：匹配期数时不重要的内容
         self.term_match_unimportant_list_wrapper = ListWidgetWrapper(self.term_match_unimportant_list, add_rows_button=True, del_rows_button=True)
         # 上传文件展示：
@@ -124,10 +125,6 @@ class MyProductEvaluationClient(WindowWithMainWorker):
         self.save_company_officer_table_button.clicked.connect(
             lambda: self.func_modal_wrapper("保存成功", set_csv_conf, OFFICER_COMPANY_PATH,
                                             self.company_officer_table_wrapper.get_data_as_df()))
-        # 3.5 高级配置：保存期数等价字典
-        self.save_term_match_equal_table_button.clicked.connect(
-            lambda: self.func_modal_wrapper("保存成功", set_csv_conf, TERM_MATCH_EQUAL_PAIR_PATH,
-                                            self.term_match_equal_table_wrapper.get_data_as_df()))
         # 3.6 高级配置：保存匹配期数时不重要的内容
         self.save_term_match_unimportant_list_button.clicked.connect(
             lambda: self.func_modal_wrapper("保存成功", set_txt_conf, TERM_MATCH_UNIMPORTANT_PATTERN_PATH,
@@ -148,8 +145,9 @@ class MyProductEvaluationClient(WindowWithMainWorker):
         if not self.is_empty_status:
             return self.modal("warn", msg="系统异常")
         self.company_officer_table_wrapper.fill_data_with_color(get_csv_conf(OFFICER_COMPANY_PATH))
-        self.term_match_equal_table_wrapper.fill_data_with_color(get_csv_conf(TERM_MATCH_EQUAL_PAIR_PATH))
         self.term_match_unimportant_list_wrapper.fill_data_with_color(get_txt_conf(TERM_MATCH_UNIMPORTANT_PATTERN_PATH, list), editable=True)
+        if TimeObj().season == 2:  # 第二季度需要清空期数匹配文件
+            TERM_PAIR_CONF.clear()
 
     def upload_file(self):
         """上传文件
@@ -170,6 +168,54 @@ class MyProductEvaluationClient(WindowWithMainWorker):
         )
         if not file_names:
             return
+
+        # 上传文件校验
+        # 1. 对应表的实际简称校验
+        #    不能重复 | 公司人员表中的公司都在 实际简称 的列中
+        """
+        PRODUCT_LIST_PATH = os.path.join(DATA_TMP_PATH, "产品目录.xlsx")
+        PRODUCT_DETAIL_PATH = os.path.join(DATA_TMP_PATH, "分行代理保险产品分险种销售情况统计表.xlsx")
+        COMPANY_ABBR_PATH = os.path.join(DATA_TMP_PATH, "对应表.xlsx")
+        LAST_TERM_PATH = os.path.join(DATA_TMP_PATH, "上期保费.xlsx")
+        """
+        # 对应表
+        condition = ExcelCheckWrapper(COMPANY_ABBR_PATH)\
+            .has_cols(cols=["全称", "实际简称", "产品目录统计"])\
+            .has_values(col="实际简称", values=OFFICER_COMPANY_CONF.get()["公司"].to_list())\
+            .no_dup_values(col="实际简称")
+        if condition.check_any_failed():
+            return self.modal("warn", f"文件校验失败：{condition.reason}")
+
+        # 产品目录
+        condition = ExcelCheckWrapper(PRODUCT_LIST_PATH)\
+            .has_sheets(sheets=["银保", "私行", "个人养老金", "团险", "统计"])\
+            .reset(sheet_name_or_index="统计")\
+            .has_values(row=0, values=["公司全称", "银保产品", "私行产品", "团险", "公司小计"])\
+            .has_values(row=1, values=["银保小计", "私行小计"])\
+            .reset(sheet_name_or_index="银保") \
+            .has_values(row=0, values=["产品名称", "期数"]) \
+            .reset(sheet_name_or_index="私行") \
+            .has_values(row=0, values=["产品名称", "期数"]) \
+            .reset(sheet_name_or_index="个人养老金") \
+            .has_values(row=0, values=["产品名称", "期数"])
+        if condition.check_any_failed():
+            return self.modal("warn", f"文件校验失败：{condition.reason}")
+
+        # 分行代理保险产品分险种销售情况统计表
+        condition = ExcelCheckWrapper(PRODUCT_DETAIL_PATH) \
+            .has_cols(["保险公司", "本期实现保费", "公司代码", "险种代码", "保险责任分类", "保险责任子分类", "保险期限", "缴费期间", "总笔数", "犹撤保费", "退保保费", "本期实现手续费收入"])
+        if condition.check_any_failed():
+            return self.modal("warn", f"文件校验失败：{condition.reason}")
+
+        # 上期保费
+        condition = ExcelCheckWrapper(LAST_TERM_PATH) \
+            .has_values(row=1, values=["险种名称", "本期实现保费"])
+        if condition.check_any_failed():
+            return self.modal("warn", f"文件校验失败：{condition.reason}")
+
+        self.modal(level="tip", msg="文件校验成功")
+
+        # 2. 设置状态
         base_names = [get_file_name_without_extension(file_name) for file_name in file_names]
         self.file_list_wrapper.fill_data_with_color(base_names)
         self.set_status_init()
@@ -219,7 +265,10 @@ class MyProductEvaluationClient(WindowWithMainWorker):
             if df_.iloc[i, j] == EMPTY_TERM_PLACE_HOLDER:
                 combo_box = QComboBox()
                 combo_box.addItem(f"{EMPTY_TERM_PLACE_HOLDER}（未找到）")
-                for i in ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]:
+                for i in [
+                    "一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
+                    "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十"
+                ]:
                     combo_box.addItem(i)
                 return combo_box
 
@@ -238,14 +287,15 @@ class MyProductEvaluationClient(WindowWithMainWorker):
             return
 
         new_df_value = self.term_match_table_wrapper.get_data_as_df().rename(columns={"期数": "新期数"})[["新期数", "险种名称"]]
-        old_df_value = self.df_value.copy()
-        merged = pd.merge(old_df_value, new_df_value, on="险种名称", how="left")
-        merged['期数'] = merged['新期数'].fillna(merged['期数']).apply(lambda x: str(x).split("（")[0])
+        merged = pd.merge(self.df_value.copy(), new_df_value.copy(), on="险种名称", how="left")
+        merged['期数'] = merged['新期数'].fillna(merged['期数']).apply(lambda x: str(x).split("（")[0])  # —（未找到）
         params = {
             "stage": "2",  # 第二阶段
             "new_df_value": merged,
             "officer_list": dedup_list(get_csv_conf(OFFICER_COMPANY_PATH)["人员"].to_list()),
         }
+        new_df_value["险种名称"] = new_df_value["险种名称"].apply(replace_parentheses_and_comma)
+        TERM_PAIR_CONF.append(new_df_value.rename(columns={"新期数": "期数", "险种名称": "产品"})).dedup().save()
         self.worker.add_params(params).start()
 
     def reset(self):

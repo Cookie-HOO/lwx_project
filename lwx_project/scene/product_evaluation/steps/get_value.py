@@ -3,7 +3,7 @@ import re
 import pandas as pd
 
 from lwx_project.scene.product_evaluation.const import *
-from lwx_project.utils.conf import get_txt_conf, get_csv_conf
+from lwx_project.utils.conf import get_txt_conf, CSVConf
 from lwx_project.utils.strings import replace_parentheses_and_comma
 from lwx_project.utils.time_obj import TimeObj
 
@@ -71,10 +71,17 @@ def match_term_num(raw_xianzhong_name, baoxian_type, abbr_2, abbr_4, yinbao_and_
     # 0. 只有有报费的参与
     if baoxian_type != "有保费":
         return ""
+    xianzhong_name = replace_parentheses_and_comma(raw_xianzhong_name)
+
+    # 0. 特定产品的期数匹配
+    df_equal = CSVConf(TERM_MATCH_PAIR_PATH, init_columns=["产品", "期数"]).get()  # 产品 | 期数
+    term_num = df_equal[df_equal["产品"] == xianzhong_name]["期数"]
+    if len(term_num.values) > 0:
+        return term_num.values[0]
+
     # 1. 严格匹配
     df_strip = yinbao_and_sihang[["产品名称", "期数"]]
     df_strip["产品名称"] = yinbao_and_sihang["产品名称"].apply(replace_parentheses_and_comma)
-    xianzhong_name = replace_parentheses_and_comma(raw_xianzhong_name)
     term_num = df_strip[df_strip["产品名称"] == xianzhong_name]["期数"]
     if len(term_num.values) > 0:
         return term_num.values[0]
@@ -110,20 +117,21 @@ def match_term_num(raw_xianzhong_name, baoxian_type, abbr_2, abbr_4, yinbao_and_
         # 如果多于一个需要交给用户判断（在client中）
         return EMPTY_TERM_PLACE_HOLDER  # bad path 由用户判断
 
-    # 4. 用户自己维护的等价字典：险种名称可以换
-    df_equal = get_csv_conf(TERM_MATCH_EQUAL_PAIR_PATH)  # 词语 | 等价
-    dict1 = df_equal.set_index('词语')['等价'].to_dict()
-    dict2 = df_equal.set_index('等价')['词语'].to_dict()
-    equal_dict = {**dict1, **dict2}
-    xianzhong_name_replace = xianzhong_name
-    for w1, w2 in equal_dict.items():
-        xianzhong_name_replace = xianzhong_name_replace.replace(w1, w2)
-        result = df_strip[df_strip['产品名称'].str.contains(xianzhong_name_replace)]
-        if len(result) == 1:
-            return result.iloc[0]["期数"]
-        elif len(result) > 1:
-            # 如果多于一个需要交给用户判断（在client中）
-            return EMPTY_TERM_PLACE_HOLDER  # bad path 由用户判断
+    # # 4. 用户自己维护的等价字典：险种名称可以换
+    # df_equal = get_csv_conf(TERM_MATCH_EQUAL_PAIR_PATH)  # 词语 | 等价
+    # dict1 = df_equal.set_index('词语')['等价'].to_dict()
+    # dict2 = df_equal.set_index('等价')['词语'].to_dict()
+    # equal_dict = {**dict1, **dict2}
+    # xianzhong_name_replace = xianzhong_name
+    # for w1, w2 in equal_dict.items():
+    #     xianzhong_name_replace = xianzhong_name_replace.replace(w1, w2)
+    #     result = df_strip[df_strip['产品名称'].str.contains(xianzhong_name_replace)]
+    #     if len(result) == 1:
+    #         return result.iloc[0]["期数"]
+    #     elif len(result) > 1:
+    #         # 如果多于一个需要交给用户判断（在client中）
+    #         return EMPTY_TERM_PLACE_HOLDER  # bad path 由用户判断
+
     # 其他情况目前找不到，由用户判断
     return EMPTY_TERM_PLACE_HOLDER
 

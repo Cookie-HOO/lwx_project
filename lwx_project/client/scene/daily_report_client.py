@@ -4,14 +4,14 @@ import random
 
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtGui import QColor
 
 from lwx_project.client.base import BaseWorker, WindowWithMainWorker
 from lwx_project.client.const import UI_PATH, COLOR_RED, COLOR_GREEN, COLOR_WHITE
+from lwx_project.client.utils.date_widget import DateEditWidgetWrapper
 from lwx_project.client.utils.exception import ClientWorkerException
 from lwx_project.client.utils.list_widget import fill_data
 from lwx_project.scene.daily_report.const import *
-from lwx_project.scene.daily_report.main import before_run, after_run
+from lwx_project.scene.daily_report.main import before_run
 from lwx_project.scene.daily_report.steps import rename, calculate, sheet_picture
 from lwx_project.utils.conf import get_txt_conf, set_txt_conf
 from lwx_project.utils.file import get_file_name_without_extension, make_zip, copy_file
@@ -29,13 +29,14 @@ class Worker(BaseWorker):
 
         # 第一步：重命名后显示修改的内容
         self.refresh_signal.emit("重命名...")
-        equal_buffer_value = self.get_param("equal_buffer_value")  # self.equal_buffer_value.value()
-        date_file_names = self.get_param("date_file_names")  # self.date_file_names
-        important_file_names = self.get_param("important_file_names")  # self.important_file_names
-        run_mute_checkbox = self.get_param("run_mute_checkbox")  # run_mute_checkbox.isChecked()
+        equal_buffer_value = self.get_param("equal_buffer_value")  # 相等的buffer
+        report_date = self.get_param("report_date")  # 报告日期
+        date_file_names = self.get_param("date_file_names")  # 需要重命名的文件
+        important_file_names = self.get_param("important_file_names")  # 上传的重要文件
+        run_mute_checkbox = self.get_param("run_mute_checkbox")  # 是否静默执行
 
         if isinstance(equal_buffer_value, int) and equal_buffer_value >= 0:
-            new_file_name2date_dict = rename.main(date_file_names, equal_buffer_value)
+            new_file_name2date_dict = rename.main(date_file_names, equal_buffer_value, report_date)
             # self.file_date_value.clear()
             # for key, value in self.new_file_name2date_dict.items():
             #     self.file_date_value.addItem(f'{key}: {value}')
@@ -82,6 +83,7 @@ class MyDailyReportClient(WindowWithMainWorker):
 
         upload_file_button: 上传文件的按钮，上传文件后，将文件名和对应的时间展示在 file_date_value 这里
         equal_buffer_value: 判断当日相等的buffer
+        report_date: 报表日期
         do_button: 点击后进行执行
         run_mute_checkbox: 静默执行的checkbox
 
@@ -104,6 +106,9 @@ class MyDailyReportClient(WindowWithMainWorker):
 
         # 读取系统配置文件
         self.init_file_config()  # 填充file_config到界面
+
+        # 设置wrapper
+        self.report_date_wrapper = DateEditWidgetWrapper(self.report_date, init_date=TimeObj() - 1)
 
         # 1. 初始化高级配置的窗口
         self.config_dock.resize(600, 800)
@@ -217,6 +222,7 @@ class MyDailyReportClient(WindowWithMainWorker):
         # 启动worker
         self.worker\
             .add_param("equal_buffer_value", self.equal_buffer_value.value())\
+            .add_param("report_date", self.report_date_wrapper.get())\
             .add_param("date_file_names", self.date_file_names)\
             .add_param("important_file_names", self.important_file_names)\
             .add_param("run_mute_checkbox", self.run_mute_checkbox.isChecked())\
