@@ -10,7 +10,7 @@ from lwx_project.client.utils.table_widget import TableWidgetWrapper
 from lwx_project.scene.product_evaluation.const import *
 from lwx_project.scene.product_evaluation.steps import data_preprocess, get_text, get_value, split_sheet
 from lwx_project.utils.conf import set_csv_conf, set_txt_conf, get_csv_conf, get_txt_conf, CSVConf
-from lwx_project.utils.excel_checker import ExcelCheckWrapper
+from lwx_project.utils.excel_checker import ExcelCheckerWrapper
 from lwx_project.utils.file import get_file_name_without_extension
 from lwx_project.utils.my_itertools import dedup_list
 from lwx_project.utils.strings import replace_parentheses_and_comma
@@ -179,7 +179,7 @@ class MyProductEvaluationClient(WindowWithMainWorker):
         LAST_TERM_PATH = os.path.join(DATA_TMP_PATH, "上期保费.xlsx")
         """
         # 对应表
-        condition = ExcelCheckWrapper(COMPANY_ABBR_PATH)\
+        condition = ExcelCheckerWrapper(COMPANY_ABBR_PATH)\
             .has_cols(cols=["全称", "实际简称", "产品目录统计"])\
             .has_values(col="实际简称", values=OFFICER_COMPANY_CONF.get()["公司"].to_list())\
             .no_dup_values(col="实际简称")
@@ -187,7 +187,7 @@ class MyProductEvaluationClient(WindowWithMainWorker):
             return self.modal("warn", f"文件校验失败：{condition.reason}")
 
         # 产品目录
-        condition = ExcelCheckWrapper(PRODUCT_LIST_PATH)\
+        condition = ExcelCheckerWrapper(PRODUCT_LIST_PATH)\
             .has_sheets(sheets=["银保", "私行", "个人养老金", "团险", "统计"])\
             .reset(sheet_name_or_index="统计")\
             .has_values(row=0, values=["公司全称", "银保产品", "私行产品", "团险", "公司小计"])\
@@ -202,13 +202,13 @@ class MyProductEvaluationClient(WindowWithMainWorker):
             return self.modal("warn", f"文件校验失败：{condition.reason}")
 
         # 分行代理保险产品分险种销售情况统计表
-        condition = ExcelCheckWrapper(PRODUCT_DETAIL_PATH) \
+        condition = ExcelCheckerWrapper(PRODUCT_DETAIL_PATH) \
             .has_cols(["保险公司", "本期实现保费", "公司代码", "险种代码", "保险责任分类", "保险责任子分类", "保险期限", "缴费期间", "总笔数", "犹撤保费", "退保保费", "本期实现手续费收入"])
         if condition.check_any_failed():
             return self.modal("warn", f"文件校验失败：{condition.reason}")
 
         # 上期保费
-        condition = ExcelCheckWrapper(LAST_TERM_PATH) \
+        condition = ExcelCheckerWrapper(LAST_TERM_PATH) \
             .has_values(row=1, values=["险种名称", "本期实现保费"])
         if condition.check_any_failed():
             return self.modal("warn", f"文件校验失败：{condition.reason}")

@@ -10,6 +10,7 @@ from lwx_project.client.const import UI_PATH, COLOR_WHITE, COLOR_RED, COLOR_GREE
 from lwx_project.client.utils.graph_widget import GraphWidgetWrapper
 from lwx_project.client.utils.table_widget import TableWidgetWrapper
 from lwx_project.scene import contribution
+from lwx_project.utils.excel_checker import ExcelCheckerWrapper
 from lwx_project.utils.logger import logger_sys_error
 
 """
@@ -65,13 +66,13 @@ class MyContributionClient(BaseWindow):
         file_name = self.upload_file_modal(("Excel Files", "*.xlsx"), multi=False)
         if not file_name:
             return
-        df = pd.read_excel(file_name, skiprows=1)
-        df.columns = [str(i).replace("\n", "") for i in df.columns]
-        # df.drop(df.index[-1], inplace=True)
         cols = ["公司", "期缴保费", "去年期缴保费"]
-        for col in cols:
-            if col not in df.columns:
-                return self.modal("warn", msg=f"上传的文件缺少列：{col}")
+        excel_checker = ExcelCheckerWrapper(file_name, skiprows=1)\
+            .column_process(lambda c: str(c).replace("\n", ""))\
+            .has_cols(cols)
+        if excel_checker.check_any_failed():
+            return self.modal("warn", f"文件校验失败：{excel_checker.reason}")
+        df = excel_checker.df.copy()
         if df["公司"].values[-1] == "合计":
             df = df.drop(df.index[-1])  # 取消最后一行总计
         self.df = df[cols]  # 将处理完的结果挂到self上

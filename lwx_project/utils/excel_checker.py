@@ -1,10 +1,12 @@
+import typing
+
 import pandas as pd
 
 from lwx_project.utils.file import get_file_name_without_extension
 
 
-class ExcelCheckWrapper:
-    def __init__(self, excel_path, sheet_name_or_index=None):
+class ExcelCheckerWrapper:
+    def __init__(self, excel_path, sheet_name_or_index=None, skiprows: int = 0):
         # 参数
         self._excel_path = excel_path
         self._sheet_name_or_index = sheet_name_or_index
@@ -12,9 +14,9 @@ class ExcelCheckWrapper:
         # 读取
         self.xls = pd.ExcelFile(excel_path)
         if sheet_name_or_index:
-            self.df = pd.read_excel(excel_path, sheet_name=sheet_name_or_index)
+            self.df = pd.read_excel(excel_path, sheet_name=sheet_name_or_index, skiprows=skiprows)
         else:
-            self.df = pd.read_excel(excel_path)
+            self.df = pd.read_excel(excel_path, skiprows=skiprows)
 
         # 校验
         self._base_name = get_file_name_without_extension(excel_path)
@@ -38,7 +40,11 @@ class ExcelCheckWrapper:
             self._reason = ""
         return self
 
-    def has_cols(self, cols: list) -> 'ExcelCheckWrapper':
+    def column_process(self, process_func: typing.Callable[[str], str]):
+        self.df.columns = self.df.columns.map(process_func)
+        return self
+
+    def has_cols(self, cols: list) -> 'ExcelCheckerWrapper':
         for col in cols:
             if not self._passed:
                 return self
@@ -48,7 +54,7 @@ class ExcelCheckWrapper:
                 return self
         return self
 
-    def has_sheets(self, sheets: list) -> 'ExcelCheckWrapper':
+    def has_sheets(self, sheets: list) -> 'ExcelCheckerWrapper':
         if not self._passed:
             return self
         for sheet in sheets:
@@ -60,7 +66,7 @@ class ExcelCheckWrapper:
                 return self
         return self
 
-    def has_values(self, values, col=None, row=None) -> 'ExcelCheckWrapper':
+    def has_values(self, values, col=None, row=None) -> 'ExcelCheckerWrapper':
         if not self._passed:
             return self
         for value in values:
@@ -78,7 +84,7 @@ class ExcelCheckWrapper:
                     return self
         return self
 
-    def no_dup_values(self, col) -> 'ExcelCheckWrapper':
+    def no_dup_values(self, col) -> 'ExcelCheckerWrapper':
         if not self._passed:
             return self
 
