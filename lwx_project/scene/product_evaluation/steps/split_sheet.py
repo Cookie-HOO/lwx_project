@@ -108,13 +108,13 @@ def split_files(officer: str, company_list: typing.List[str], df_text, df_value)
         .set_cell((2, 1), f"日期：{today.last_season_last_day_num[:4]}0101-{today.last_season_last_day_num}   机构：总行   货币单位：万元   统计渠道：全部")\
         .set_cell((3, 1), f"【评价】")\
         .batch_copy_sheet(company_list, append=False, del_old=True)\
-        .for_each(lambda company: esv.set_cell((4, 1), df_text[df_text["实际简称"] == company]["评价1"].item())) \
-        .for_each(lambda company: esv.set_cell((5, 1), df_text[df_text["实际简称"] == company]["评价2"].item())) \
-        .for_each(lambda company: esv.set_cell((6, 1), df_text[df_text["实际简称"] == company]["评价3"].item())) \
-        .for_each(lambda company: esv.set_cell((8, 1), company)) \
-        .for_each(lambda company: esv.set_cell((14, 1), company)) \
-        .for_each(lambda company: esv.set_cell((20, 1), company)) \
-        .for_each(lambda company: product_rows(company, df_value, esv))\
+        .for_each_sheet(lambda company: esv.set_cell((4, 1), df_text[df_text["实际简称"] == company]["评价1"].item())) \
+        .for_each_sheet(lambda company: esv.set_cell((5, 1), df_text[df_text["实际简称"] == company]["评价2"].item())) \
+        .for_each_sheet(lambda company: esv.set_cell((6, 1), df_text[df_text["实际简称"] == company]["评价3"].item())) \
+        .for_each_sheet(lambda company: esv.set_cell((8, 1), company)) \
+        .for_each_sheet(lambda company: esv.set_cell((14, 1), company)) \
+        .for_each_sheet(lambda company: esv.set_cell((20, 1), company)) \
+        .for_each_sheet(lambda company: product_rows(company, df_value, esv))\
         .save()
     pass
 

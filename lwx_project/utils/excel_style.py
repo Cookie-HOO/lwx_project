@@ -14,7 +14,7 @@ class ExcelStyleValue:
 
         self.shts = []
 
-    def for_each(self, func: typing.Callable[[str], None]):
+    def for_each_sheet(self, func: typing.Callable[[str], None]):
         """遍历存储的sheets，遇到batch_copy时会存储"""
         if not self.shts:
             print("没有存储批量的sheet，请先调用batch copy接口批量创建sheet")
@@ -22,6 +22,9 @@ class ExcelStyleValue:
             self.sht = sht  # 改变当前self指向
             func(self.sht.name)
         return self
+
+    def get_cell(self, cell):
+        return self.sht.range(cell).value
 
     def set_cell(self, cell, value, limit=True):
         if limit:
@@ -64,10 +67,50 @@ class ExcelStyleValue:
                     self.set_row(row_num + index, row.to_list())
         return self
 
+    def copy_col(self, from_col_num: int, to_col_num, limit=True):
+        if not limit:
+            return self
+        from_col_alpha = self.num2col_char(from_col_num)
+        to_col_alpha = self.num2col_char(to_col_num)
+        col = self.sht.range(f'{from_col_alpha}:{from_col_alpha}')
+        col.api.Copy()
+        self.sht.range(f'{to_col_alpha}:{to_col_alpha}').api.Insert()
+        return self
+
     # 行操作：设置一行（保留样式）
     def set_row(self, row_num: int, value_list: typing.List[str]):
         self.sht.range(f'{row_num}:{row_num}').value = value_list
         return self
+
+    def set_col_by_values(self, col_num: int, values: typing.List[str], start_row_num: int = 1):
+        """"""
+        if len(values) <= 0:
+            return self
+        start_row_num = start_row_num or 1
+        row_nums = range(start_row_num, start_row_num + len(values))
+        for row_num, value in zip(row_nums, values):
+            self.set_cell((row_num, col_num), value)
+        return self
+
+    def set_col_by_col(self, from_col, to_col, start_row_num=1, end_row_num: int = None, end_format: typing.Callable=None):
+        start_col_char = self.num2col_char(from_col)
+        if end_row_num is None:
+            start = f"{start_col_char}1"
+            end_row_num = self.sht.range(start).end('down').row
+        values = self.sht.range(f"{start_col_char}{start_row_num}:{start_col_char}{end_row_num}").value
+        if end_format:
+            values = [end_format(i) for i in values]
+        self.set_col_by_values(to_col, values, start_row_num=start_row_num)
+        return self
+
+    def get_col(self, col_num: int, start_row_num: int, end_row_num: int = None):
+        values = []
+        if end_row_num is None:
+            start = f"{self.num2col_char(col_num)}1"
+            end_row_num = self.sht.range().end('down').row
+
+        values = [self.get_cell((start_row_num, col_num))]
+        return values
 
     # 行操作：删除一行（保留样式）
     def delete_row(self, row_num: int, limit=True):
@@ -75,7 +118,7 @@ class ExcelStyleValue:
             self.sht.range(f'{row_num}:{row_num}').api.Delete()
         return self
 
-    # 行操作：删除一行（保留样式）
+    # 行操作：删除多行（保留样式）
     def batch_delete_row(self, start_row_num: int, end_row_num: int, limit=True):
         if limit:
             self.sht.range(f'{start_row_num}:{end_row_num}').api.Delete()
@@ -165,3 +208,11 @@ class ExcelStyleValue:
 
     def discard(self):
         self.wb.close()
+
+    @staticmethod
+    def num2col_char(num: int) -> str:
+        """1 -> A"""
+        chars = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        if num > 26:
+            raise ValueError("more than 26")
+        return chars[num-1]

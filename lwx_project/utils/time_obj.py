@@ -81,6 +81,10 @@ class TimeObj:
         return "-".join(self.date_str.split("-")[-2:])
 
     @property
+    def month_day_in_char(self):
+        return f"{self.month}月{self.day}日"
+
+    @property
     def year(self) -> int:
         return self.time_obj.year
 
@@ -134,6 +138,11 @@ class TimeObj:
             return f"{self.year}年前两季度"
         elif season_num == 4:
             return f"{self.year}年前三季度"
+
+    @property
+    def last_day_of_month(self) -> 'TimeObj':
+        # 格式：5月31日
+        return TimeObj(datetime.date(year=self.year, month=self.month+1, day=1) - datetime.timedelta(days=1))
 
     @property
     def is_first_day_of_base_year(self) -> bool:
