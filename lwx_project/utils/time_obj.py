@@ -93,6 +93,10 @@ class TimeObj:
         return self.time_obj.month
 
     @property
+    def last_month(self) -> int:
+        return self.time_obj.month - 1 if self.time_obj.month > 1 else 12
+
+    @property
     def day(self) -> int:
         return self.time_obj.day
 

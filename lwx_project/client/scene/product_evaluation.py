@@ -187,16 +187,17 @@ class MyProductEvaluationClient(WindowWithMainWorker):
             return self.modal("warn", f"文件校验失败：{condition.reason}")
 
         # 产品目录
+        # todo：这里的has_values 改成has_cols就行，可以把col合并，下面的同理
         condition = ExcelCheckerWrapper(PRODUCT_LIST_PATH)\
             .has_sheets(sheets=["银保", "私行", "个人养老金", "团险", "统计"])\
-            .reset(sheet_name_or_index="统计")\
+            .switch(sheet_name_or_index="统计")\
             .has_values(row=0, values=["公司全称", "银保产品", "私行产品", "团险", "公司小计"])\
             .has_values(row=1, values=["银保小计", "私行小计"])\
-            .reset(sheet_name_or_index="银保") \
+            .switch(sheet_name_or_index="银保") \
             .has_values(row=0, values=["产品名称", "期数"]) \
-            .reset(sheet_name_or_index="私行") \
+            .switch(sheet_name_or_index="私行") \
             .has_values(row=0, values=["产品名称", "期数"]) \
-            .reset(sheet_name_or_index="个人养老金") \
+            .switch(sheet_name_or_index="个人养老金") \
             .has_values(row=0, values=["产品名称", "期数"])
         if condition.check_any_failed():
             return self.modal("warn", f"文件校验失败：{condition.reason}")

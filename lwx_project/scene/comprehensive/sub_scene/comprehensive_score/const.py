@@ -1,13 +1,7 @@
-######################## contribution #########################
 import os
 
-from lwx_project.const import ALL_DATA_PATH
+from lwx_project.scene.comprehensive.const import DATA_TMP_PATH
 
-DATA_PATH = os.path.join(ALL_DATA_PATH, "comprehensive_score")
-# Data路径：important
-DATA_IMPORTANT_PATH = os.path.join(DATA_PATH, "important")
-# Data路径：tmp
-DATA_TMP_PATH = os.path.join(DATA_PATH, "tmp")
 SCORE_PATH = os.path.join(DATA_TMP_PATH, "分公司综合管理评价指标统计-计算版.xlsx")
 
 # TEMPLATE

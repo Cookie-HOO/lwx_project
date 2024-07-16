@@ -28,6 +28,18 @@ def num_or_na_or_zero(num):
     return num
 
 
+def cal_increase(now_value, last_value, formatter=None, value_when_div_zero=None):
+    if last_value == 0:
+        return value_when_div_zero
+    increase = (now_value - last_value) / last_value
+
+    if formatter is None:
+        return str(round(increase, 1))
+    elif formatter == "%":
+        return str(round(increase * 100, 1)) + '%'
+
+
+
 if __name__ == '__main__':
     print(float2int(2.5))
     print(float2int(-2.5))

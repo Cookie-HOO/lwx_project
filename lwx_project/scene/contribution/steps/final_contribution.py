@@ -1,14 +1,12 @@
 import numpy as np
 import pandas as pd
 
-from lwx_project.utils.calculator import float2int
+from lwx_project.utils.calculator import float2int, cal_increase
 
 
 def main(df, alpha):
     # 1. 增加同比
-    df["同比"] = (df["期缴保费"] - df["去年期缴保费"]) / df["去年期缴保费"]
-    df['同比'].fillna(0, inplace=True)
-    df['同比'].replace(np.inf, 0, inplace=True)
+    df["同比"] = df.apply(lambda row: cal_increase(now_value=row["期缴保费"], last_value=row["去年期缴保费"], value_when_div_zero="—", formatter="%"), axis=1)
 
     # 2. 计算贡献率
     df["贡献率"] = df["存量贡献率"] * alpha + df["增量贡献率"] * (1 - alpha)
@@ -35,7 +33,6 @@ def main(df, alpha):
 
     # 4. % 处理
     df["贡献率"] = df["贡献率"].apply(lambda x: str(round(x*100, 1)) + '%')
-    df["同比"] = df["同比"].apply(lambda x: str(round(x * 100, 1)) + '%')
     df.replace('nan%', 0, inplace=True)  # 似乎没用了
     df.replace('inf%', 0, inplace=True)  # 似乎没用了
     df.replace('0.0%', 0, inplace=True)

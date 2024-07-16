@@ -68,13 +68,14 @@ class MyContributionClient(BaseWindow):
             return
         cols = ["公司", "期缴保费", "去年期缴保费"]
         excel_checker = ExcelCheckerWrapper(file_name, skiprows=1)\
-            .column_process(lambda c: str(c).replace("\n", ""))\
+            .column_name_process(process_func=lambda c: str(c).replace("\n", ""))\
             .has_cols(cols)
         if excel_checker.check_any_failed():
             return self.modal("warn", f"文件校验失败：{excel_checker.reason}")
         df = excel_checker.df.copy()
         if df["公司"].values[-1] == "合计":
             df = df.drop(df.index[-1])  # 取消最后一行总计
+        df = df[~((df["期缴保费"] == 0) & (df["去年期缴保费"] == 0))]  # 去掉去年和今年保费都是0的行
         self.df = df[cols]  # 将处理完的结果挂到self上
         self.table_widget_wrapper.fill_data_with_color(self.df)
         # table_widget.fill_data(self.table_value, self.df)
