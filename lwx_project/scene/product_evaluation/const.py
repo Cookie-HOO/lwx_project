@@ -11,9 +11,9 @@ DATA_RESULT_PATH = os.path.join(DATA_PATH, "result")
 
 PRODUCT_LIST_PATH = os.path.join(DATA_TMP_PATH, "产品目录.xlsx")
 PRODUCT_DETAIL_PATH = os.path.join(DATA_TMP_PATH, "分行代理保险产品分险种销售情况统计表.xlsx")
-COMPANY_ABBR_PATH = os.path.join(DATA_TMP_PATH, "对应表.xlsx")
 LAST_TERM_PATH = os.path.join(DATA_TMP_PATH, "上期保费.xlsx")
 
+COMPANY_ABBR_PATH = os.path.join(DATA_IMPORTANT_PATH, "对应表.xlsx")
 EXCEL_TEMPLATE_PATH = os.path.join(DATA_IMPORTANT_PATH, "模板.xlsm")
 OFFICER_COMPANY_PATH = os.path.join(DATA_IMPORTANT_PATH, "公司人员映射表.csv")
 TERM_MATCH_UNIMPORTANT_PATTERN_PATH = os.path.join(DATA_IMPORTANT_PATH, "期数匹配可删词.txt")

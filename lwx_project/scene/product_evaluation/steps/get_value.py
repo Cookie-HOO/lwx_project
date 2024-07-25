@@ -44,6 +44,9 @@ def match_term_num(raw_xianzhong_name, baoxian_type, abbr_2, abbr_4, yinbao_and_
     匹配期数
     0. 如果保险类型不是 有保费
         返回 空字符串
+    0. 如果能够直接匹配到期数
+        返回
+
     1. 严格
         删除以下内容后完全一致，完全一致
             删除中英文小括号
@@ -62,9 +65,7 @@ def match_term_num(raw_xianzhong_name, baoxian_type, abbr_2, abbr_4, yinbao_and_
             可有可无的东西不能在小括号中，比如（分红型）不能删
             TODO：如果多于一个需要交给用户判断（在client中）
 
-    5. 用户的自定义规则
-        A -> B
-    6. 如果还是没有
+    5. 如果还是没有
         TODO：需要交给用户判断（在client中）
 
     """
