@@ -5,6 +5,7 @@ import pandas as pd
 from lwx_project.scene.product_name_match.const import *
 from lwx_project.utils.conf import get_txt_conf
 from lwx_project.utils.excel_checker import ExcelCheckerWrapper
+from lwx_project.utils.excel_style import ExcelStyleValue
 from lwx_project.utils.strings import replace_parentheses_and_comma
 
 
@@ -51,10 +52,12 @@ def match_product_name(raw_xianzhong_name, abbr_2, abbr_4, df_match):
         TODO：需要交给用户判断
 
     """
-    # 0. 只有有报费的参与
+    if pd.isna(raw_xianzhong_name):
+        return ""
     xianzhong_name = replace_parentheses_and_comma(raw_xianzhong_name)
 
     # 1. 严格匹配
+    df_match = df_match[~pd.isna(df_match["险种名称"])]
     df_strip = df_match[["险种名称"]]
     df_strip["险种名称"] = df_match["险种名称"].apply(replace_parentheses_and_comma)
     name_match = df_strip[df_strip["险种名称"] == xianzhong_name]["险种名称"]
@@ -111,27 +114,37 @@ def match_product_name(raw_xianzhong_name, abbr_2, abbr_4, df_match):
     return ""
 
 
-def main(df_product, df_match_list):
+def main(df_product, df_match_list, match_years):
     """
     :param df_product:
     :param df_match_list:
     :return:
     """
-    abbr_checker = ExcelCheckerWrapper(excel_path=COMPANY_ABBR_PATH).has_cols(["全称", "产品目录统计", "实际简称"])
+    # 产品目录统计： abbr2
+    # 实际简称：abbr4
+    abbr_checker = ExcelCheckerWrapper(excel_path=COMPANY_ABBR_PATH).has_cols(["产品目录统计", "实际简称"])
     if abbr_checker.check_any_failed():
         raise ValueError
 
+    # df_match 先join 对应表（abb2，和abb4）
+    df_result = pd.merge(df_product, abbr_checker.df[["产品目录统计", "实际简称"]], how="left", left_on="公司名称", right_on="实际简称")
+    df_match_all = pd.DataFrame({})
+    tmp_df = pd.DataFrame({})
     for index, df_match in enumerate(df_match_list):
-        # 1. df_match 先join 对应表（abb2，和abb4）
-        df_result = pd.merge(df_product, abbr_checker.df[["全称"]])  # todo： 这里似乎不能用产品直接匹配公司
         # 2. 再取找df_match_list里面每一个的
         #   raw_xianzhong_name, abbr_2, abbr_4, df_match
-        df_product[f"系统名称{index+1}"] = df_product.apply(
+        df_match_all[f"系统名称{index+1}"] = df_result.apply(
             lambda x: match_product_name(x["产品名称"], x["产品目录统计"], x["实际简称"], df_match),
             axis=1)
-        df_product[f"年份{index+1}"] = f"{2015+index}"  # TODO: 写一个函数取获取具体年数
-        pass
-    pass
+
+    tmp_df['系统名称'] = df_match_all.apply(lambda row: '，'.join(row[row.notna() & (row != '')].drop_duplicates().astype(str)), axis=1)
+
+    tmp_df['个数'] = df_match_all.apply(lambda row: len(row[row.notna() & (row != '')].drop_duplicates().astype(str)), axis=1)
+    df_result['系统名称'] = tmp_df['系统名称']
+    df_result['年份'] = df_match_all.apply(lambda row: '|'.join([match_years[i] for i, c in enumerate(row.index) if pd.notna(row[c]) and row[c] != '']), axis=1)
+    df_result['个数'] = tmp_df['个数']
+
+    return df_result
 
 
 if __name__ == '__main__':
@@ -143,16 +156,22 @@ if __name__ == '__main__':
         r"D:\projects\lwx_project\data\product_name_match\upload\2018.xlsx",
         r"D:\projects\lwx_project\data\product_name_match\upload\2019.xlsx",
     ]
-    product_excel_checker = ExcelCheckerWrapper(excel_path=df_product_path).has_cols(["产品名称"])
+    product_excel_checker = ExcelCheckerWrapper(excel_path=df_product_path).has_cols(["产品名称", "公司名称"])
     if product_excel_checker.check_any_failed():
         raise ValueError
-    df_product_ = product_excel_checker.df[["产品名称"]]
+    df_product_ = product_excel_checker.df[["产品名称", "公司名称"]]
 
     df_match_list_ = []
+    match_years = []
     for path in df_list_path:
         match_excel_checker = ExcelCheckerWrapper(excel_path=path, skiprows=2).has_cols(["险种名称"])
         if match_excel_checker.check_any_failed():
             raise ValueError
         df_match_list_.append(match_excel_checker.df[["险种名称"]])
 
-    main(df_product_, df_match_list_)
+        # 日期：2015年01月01日--2015年12月31日    机构:总行    货币单位:万元    统计渠道:全部
+        text = ExcelStyleValue(excel_path=path, run_mute=True).get_cell((2, 1))
+        year = text.split("年")[0].split("：")[-1]
+        match_years.append(year)
+
+    main(df_product_, df_match_list_, match_years)

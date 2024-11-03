@@ -43,22 +43,27 @@ def groupby_company(df_company):
         # main_product: 人保寿险鑫安两全保险(分红型)(C款)：15.64亿元，人保寿险臻鑫一生终身寿险：2.9亿元
         main_product="，".join(main_product),
         main_product_fee_num='%.2f' % main_product_top2_fee,
-        main_product_fee_percent='%.2f' % (main_product_top2_fee / fee_total * 100) + '%',
+        main_product_fee_percent='%.2f' % (main_product_top2_fee / fee_total * 100) + '%' if fee_total != 0 else "0",
     )
     return text
 
 
-def main(df):
-    df_for_text = df[["保险公司", "实际简称", "险种名称", "缴费方式", "本期实现保费"]]
-    df_count = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="统计")
+def main(df_detail, df_tongji):
+    """
+    :param df_detail: df_detail 和 abbr表合并后，带有简称的表
+    :param df_tongji: 产品目录中的统计sheet，注意表头的合并
+    :return:
+    """
+    df_for_text = df_detail[["保险公司", "实际简称", "险种名称", "缴费方式", "本期实现保费"]]
+    # df_count = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="统计")
 
     # 处理df_count表的表头问题
-    new_columns = df_count.iloc[0, :].ffill() + df_count.iloc[1, :].fillna(value='')
-    df_count.columns = new_columns
-    df_count.drop(index=[0, 1], inplace=True)
-    df_count = df_count[["公司全称", "银保产品银保小计", "私行产品私行小计", "团险", "公司小计"]]
+    # new_columns = df_count.iloc[0, :].ffill() + df_count.iloc[1, :].fillna(value='')
+    # df_count.columns = new_columns
+    # df_count.drop(index=[0, 1], inplace=True)
+    df_tongji = df_tongji[["公司全称", "银保产品银保小计", "私行产品私行小计", "团险", "公司小计"]]
 
-    df_merge = df_for_text.merge(df_count, how="left", left_on="保险公司", right_on="公司全称")
+    df_merge = df_for_text.merge(df_tongji, how="left", left_on="保险公司", right_on="公司全称")
 
     return df_merge.groupby("实际简称", as_index=False).apply(groupby_company).rename(columns={None: "评价"})
 

@@ -9,6 +9,5 @@ DATA_IMPORTANT_PATH = os.path.join(DATA_PATH, "important")
 DATA_TMP_PATH = os.path.join(DATA_PATH, "tmp")
 DATA_RESULT_PATH = os.path.join(DATA_PATH, "result")
 
-
-PRODUCT_MATCH_UNIMPORTANT_PATTERN_PATH = os.path.join(DATA_IMPORTANT_PATH, "产品匹配可删词.csv")
+PRODUCT_MATCH_UNIMPORTANT_PATTERN_PATH = os.path.join(DATA_IMPORTANT_PATH, "产品匹配可删词.txt")
 COMPANY_ABBR_PATH = os.path.join(DATA_IMPORTANT_PATH, "对应表.xlsx")

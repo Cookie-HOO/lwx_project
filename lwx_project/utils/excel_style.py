@@ -7,10 +7,11 @@ SHEETS_TYPE = typing.List[SHEET_TYPE]
 
 
 class ExcelStyleValue:
-    def __init__(self, excel_path, sheet_name_or_index, run_mute=False):
+    def __init__(self, excel_path, sheet_name_or_index=0, run_mute=False):
         self.app = xw.App(visible=not run_mute, add_book=False)
         self.wb = self.app.books.open(excel_path)
         self.sht = self.wb.sheets[sheet_name_or_index]
+        self.shts_length = len(self.wb.sheets)
 
         self.shts = []
 
@@ -104,6 +105,13 @@ class ExcelStyleValue:
         return self
 
     def get_col(self, col_num: int, start_row_num: int, end_row_num: int = None):
+        col_alpha = self.num2col_char(col_num)
+        col = self.sht.range(f'{col_alpha}:{col_alpha}')
+        return col.value
+
+        col.api.Copy()
+
+
         values = []
         if end_row_num is None:
             start = f"{self.num2col_char(col_num)}1"

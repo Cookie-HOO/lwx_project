@@ -7,6 +7,7 @@ from lwx_project.client.scene.activity_rate import MyActivityRateClient
 from lwx_project.client.scene.contribution_client import MyContributionClient
 from lwx_project.client.scene.daily_report_client import MyDailyReportClient
 from lwx_project.client.scene.product_evaluation import MyProductEvaluationClient
+from lwx_project.client.scene.product_name_match import MyProductNameMatchClient
 
 
 class MyClient(QMainWindow):
@@ -19,3 +20,4 @@ class MyClient(QMainWindow):
         self.main_tab.addTab(MyProductEvaluationClient(), '产品评价')
         self.main_tab.addTab(MyActivityRateClient(), '活动率画图')
         self.main_tab.addTab(MyContributionClient(), '贡献率计算')
+        self.main_tab.addTab(MyProductNameMatchClient(), '产品名称匹配')

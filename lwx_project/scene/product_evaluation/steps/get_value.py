@@ -137,9 +137,18 @@ def match_term_num(raw_xianzhong_name, baoxian_type, abbr_2, abbr_4, yinbao_and_
     return EMPTY_TERM_PLACE_HOLDER
 
 
-def main(df):
+def main(df_detail, df_tuanxian, df_yinbao, df_sihang, df_gerenyanglaojin, df_last_term=None):
+    """
+    :param df_detail: 拼接简称表之后的带简称的df
+    :param df_tuanxian: 团险
+    :param df_yinbao: 银保
+    :param df_sihang: 私行
+    :param df_gerenyanglaojin: 个人养老金
+    :param df_last_term: 上期保费，如果当前是一季度，上期保费可以不传
+    :return:
+    """
     # 1. 数据预处理
-    df_for_value = df.drop(
+    df_for_value = df_detail.drop(
         columns=["保险公司"]
     )
     df_for_value = df_for_value.rename(columns={
@@ -165,21 +174,21 @@ def main(df):
     })
 
     # 3.存储有保费、无保费、团险三种类型
-    all_tuanxian_product_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="团险", skiprows=1)
-    all_tuanxian_product = all_tuanxian_product_df["产品名称"].dropna().values
+    # all_tuanxian_product_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="团险", skiprows=1)
+    all_tuanxian_product = df_tuanxian["产品名称"].dropna().values
     df_for_value_group["保险类型"] = df_for_value_group.apply(lambda x: get_baoxian_type(x, all_tuanxian_product), axis=1)
 
     # 4. 寻找期数（只有有保费的需要找期数）
     df_for_value_group["期数"] = ""
-    yinbao_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="银保", skiprows=1)
-    sihang_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="私行", skiprows=1)
-    gerenyanglaojin_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="个人养老金", skiprows=1)
+    # yinbao_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="银保", skiprows=1)
+    # sihang_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="私行", skiprows=1)
+    # gerenyanglaojin_df = pd.read_excel(PRODUCT_LIST_PATH, sheet_name="个人养老金", skiprows=1)
     # 将三个sheet作为匹配的表：todo: 改成配置
     yinbao_and_sihang = pd.concat(
         [
-            yinbao_df.dropna(subset=["产品名称"])[["产品名称", "期数"]],
-            sihang_df.dropna(subset=["产品名称"])[["产品名称", "期数"]],
-            gerenyanglaojin_df.dropna(subset=["产品名称"])[["产品名称", "期数"]],
+            df_yinbao.dropna(subset=["产品名称"])[["产品名称", "期数"]],
+            df_sihang.dropna(subset=["产品名称"])[["产品名称", "期数"]],
+            df_gerenyanglaojin.dropna(subset=["产品名称"])[["产品名称", "期数"]],
         ],
         axis=0
     )
@@ -204,10 +213,13 @@ def main(df):
         在{上期保费.xlsx} 和 {总表1} 中 {险种名称}一样的列，对 {上期保费.xlsx} 中的 {本期实现保费} 求和
     """
     today = TimeObj()
-    if today.season == 1:
+    if today.season == 2:
         return df_for_value_group
-    last_season_fee = pd.read_excel(LAST_TERM_PATH, skiprows=2)
-    last_season_fee_group = last_season_fee.groupby("险种名称", as_index=False)["本期实现保费"].sum()
+    if df_last_term is None:
+        raise ValueError(f"当前位于：{today.season}季度，需要提供上季度保费表")
+    # 如果当前不是第一季度，需要拼接上期保费
+    # last_season_fee = pd.read_excel(LAST_TERM_PATH, skiprows=2)
+    last_season_fee_group = df_last_term.groupby("险种名称", as_index=False)["本期实现保费"].sum()
     last_season_fee_group = last_season_fee_group.rename(columns={"本期实现保费": "截止上季度实现保费"})
 
     df_for_value_group = df_for_value_group.merge(last_season_fee_group, how="left", on="险种名称")

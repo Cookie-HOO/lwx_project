@@ -3,9 +3,9 @@ import shutil
 import traceback
 import typing
 
+import pandas as pd
 from PyQt5.QtCore import pyqtSignal, QThread, QTimer, QTime
-from PyQt5.QtWidgets import QWidget, QLabel, QMainWindow, QMessageBox, QListWidget, QFileDialog, QApplication, \
-    QListView, QTextBrowser, QTableWidget
+from PyQt5.QtWidgets import QWidget, QLabel, QMainWindow, QMessageBox, QListWidget, QFileDialog, QApplication, QPushButton
 from PyQt5.QtGui import QPixmap
 
 from lwx_project.client.const import *
@@ -73,6 +73,40 @@ class BaseWorker(QThread):
 
 
 class BaseWindow(QMainWindow):
+    def __init__(self):
+        super(BaseWindow, self).__init__()
+        self.modal_list = []
+
+    # 初始化场景说明按钮
+    # 每个子场景有自己的UI，无法在继承父类时自动执行，需子场景手动调用
+    def init_help_button(self, show_text, pos=None, button_text="❓"):
+        default_text = """
+=========== 图示 ===========
+第一个图标表示是否必须
+    ❗表示必须（校验不过无法执行此场景）
+    ❓表示非必须（但是如果提供了格式校验不通过一样无法执行）
+第二个图标表示：内容从哪里来
+    ⛔表示由系统生成，不要修改
+    🔧表示在场景的高级设置中可以修改
+    📗表示可上传的同名文件，会被覆盖（覆盖时会有提示）
+    🪟表示在操作界面，由用户操作产生
+注：
+    1. 如果Important文件不合规，点击上传文件会有报错提示（无法上传文件）
+    2. 如果上传的文件不合规，会有报错提示（无法执行场景）
+"""
+        help_button = QPushButton(button_text, self)
+        # 设置按钮的位置和大小
+        pos = pos or (150, 0, 50, 25)
+        help_button.setGeometry(*pos)  # pos： 150, 0, 20, 20
+        # 连接按钮的点击事件到showDoc方法
+
+        # help_button.clicked.connect(lambda:
+        #                             self.modal("info", title="Documentation", msg=default_text + show_text))
+        help_button.clicked.connect(lambda: (
+            self.modal("info", title="Documentation", msg=show_text, async_run=True, count_down=60),
+            self.modal("info", title="Legend", msg=default_text, async_run=True, count_down=5),
+        ))
+
     ############  元素操作: 直接调用, 或者是worker发送事件的消费者 ############
     # 清除元素
     def clear_element(self, element):
@@ -96,12 +130,15 @@ class BaseWindow(QMainWindow):
             ele.addItems(json.loads(item))
 
     ############ 组件封装 ############
-    def modal(self, level, msg, title=None, done=None, **kwargs):
+    def modal(self, level, msg, title=None, done=None, async_run=None, **kwargs):
         """
         :param level:
         :param msg:
         :param title:
         :param done:
+        :param async_run: 是否异步执行，即弹窗之后不影响UI继续进行
+            默认False，即弹窗之后必须等待用户手动ok或手动关闭
+            仅支持tip（默认True）info（默认False）
         :param kwargs
             count_down
         :return:
@@ -113,7 +150,13 @@ class BaseWindow(QMainWindow):
         if level == "info":
             if done:
                 self.done = True
-            QMessageBox.information(self, title, msg)
+            if async_run:  # 只有info支持 async_run
+                msgBox = QMessageBox(QMessageBox.Information, title, msg)
+                msgBox.finished.connect(lambda: self.modal_list.remove(msgBox))  # 在弹窗关闭时从列表中移除
+                msgBox.show()
+                self.modal_list.append(msgBox)  # 将弹窗添加到列表中，保持引用
+            else:
+                QMessageBox.information(self, title, msg)
         elif level == "warn":
             if done:
                 self.done = True
@@ -129,20 +172,27 @@ class BaseWindow(QMainWindow):
             return reply == QMessageBox.Yes
         elif level == "tip":
             count_down = kwargs.get("count_down", 3)
-            TipWidgetWithCountDown(msg=msg, count_down=count_down)
+            async_run = async_run or async_run is None  # 默认就是异步
+            TipWidgetWithCountDown(msg=msg, count_down=count_down, async_run=async_run, outer_container=self.modal_list)
 
     # 上传
-    def upload_file_modal(self, patterns=("Excel Files", "*.xlsx"), multi=False, required_base_name_list=None, copy_to: str = None) -> typing.Union[str, list, None]:
+    def upload_file_modal(
+            self, patterns=("Excel Files", "*.xlsx"), multi=False,
+            required_base_name_list=None, copy_to: str = None,
+            optional_base_name_list=None,
+            overwritten_base_name_list=None, overwritten_to: str = None
+    ) -> typing.Union[str, list, None]:
         """
         :param patterns:
             [(pattern_name, pattern), (pattern_name, pattern)]  ("Excel Files", "*.xls*")
         :param multi: 是否支持多选
         :param required_base_name_list: 上传的文件必須有的文件名,，注意这个参数的元素不含后缀且没有路径，只有文件名
+        :param optional_base_name_list: 上传的文件可以有的文件名,，注意这个参数的元素不含后缀且没有路径，只有文件名，如果指定了，会影响返回文件的顺序
         :param copy_to: 如果制定了这个参数，会将上传的文件一并拷贝到这个路径
+        :param overwritten_base_name_list: 如果制定了这个参数，上传的文件中如果出现此文件会警告，要将这个文件覆盖到important文件中吗
+        :param overwritten_to: important的路径
         :return:
         """
-        if copy_to:
-            self.clear_tmp_and_copy_important(tmp_path=copy_to)
         if len(patterns) == 2 and isinstance(patterns[0], str):
             patterns = [patterns]
         options = QFileDialog.Options()
@@ -155,17 +205,43 @@ class BaseWindow(QMainWindow):
         required_list = required_base_name_list or []
         file_name_list = file_name_or_list if isinstance(file_name_or_list, list) else [file_name_or_list]
         file_name_base_names = [get_file_name_without_extension(file_name) for file_name in file_name_list]
+        order_index_list = []
         for required in required_list:
             if required not in file_name_base_names:
                 self.modal("warn", f"请包含{required}文件")
                 return []
+            else:
+                order_index_list.append(file_name_base_names.index(required))
+
+        # 处理option文件的情况
+        optional_list = optional_base_name_list or []
+        for optional in optional_list:
+            if optional in file_name_base_names:
+                order_index_list.append(file_name_base_names.index(optional))
+
+        # 处理可能的文件覆盖的情况
+        for overwritten in overwritten_base_name_list or []:
+            if overwritten in file_name_base_names:
+                overwritten_index = file_name_base_names.index(overwritten)
+                overwritten_path = file_name_list[overwritten_index]
+                answer = self.modal(
+                    "check_yes", title=overwritten + "?",
+                    msg=f"你上传了{overwritten}, 确定要用吗, YES会覆盖现有的,NO会剔除这个文件,上传其他文件"
+                )
+                if answer:
+                    copy_file(overwritten_path, overwritten_to)
 
         # 如果指定了路径，将所有文件拷贝过去
         if copy_to:
             for file_name in file_name_list:
                 new_path = os.path.join(copy_to, get_file_name_with_extension(file_name))
                 copy_file(file_name, new_path)
-        return file_name_or_list
+
+        # 按照必要性的顺序排序
+        new_list = [file_name_or_list[ind] for ind in order_index_list]
+        remain_list = [v for v in file_name_or_list if v not in new_list]
+        new_list.extend(remain_list)
+        return new_list
 
     # 下载
     def download_file_modal(self, default_name: str):
@@ -175,13 +251,25 @@ class BaseWindow(QMainWindow):
                                                    f"All Files (*);;Text Files (*.{suffix})", options=options)
         return file_path
 
-    def download_zip_from_path(self, path, default_topic):
-        file_path = self.download_file_modal(f"{TimeObj().time_str}_{default_topic}.zip")
-        if not file_path:
-            return
-        make_zip(path, file_path.rstrip(".zip"))
-
-    # copy_file(DAILY_REPORT_RESULT_TEMPLATE_PATH, filePath)
+    def download_zip_or_file_from_path(self, path_or_df, default_topic):
+        if isinstance(path_or_df, str):
+            path = path_or_df
+            if len(os.listdir(path)) > 1:
+                file_path = self.download_file_modal(f"{TimeObj().time_str}_{default_topic}.zip")
+                if not file_path:
+                    return
+                make_zip(path, file_path.rstrip(".zip"))
+            else:
+                file_path = self.download_file_modal(f"{TimeObj().time_str}_{os.listdir(path)[0]}")
+                if not file_path:
+                    return
+                copy_file(os.path.join(path, os.listdir(path)[0]), file_path)
+        elif isinstance(path_or_df, pd.DataFrame):
+            df = path_or_df
+            file_path = self.download_file_modal(f"{TimeObj().time_str}_{default_topic}.csv")
+            if not file_path:
+                return
+            df.to_csv(file_path, index=False)
 
     # 复制
     @staticmethod
@@ -309,11 +397,11 @@ class WindowWithMainWorker(BaseWindow):
         self.set_status_success()
 
     # 工具函数
-    def download_zip_from_path(self, path, default_topic, exclude=None):
+    def download_zip_or_file_from_path(self, path_or_df, default_topic, exclude=None):
         """下载结果文件
         :return:
         """
         # 弹出一个文件保存对话框，获取用户选择的文件路径
         if not self.is_success:
             return self.modal("info", "请先执行或等待任务完成..." + self.status_text)
-        super().download_zip_from_path(path, default_topic)
+        super().download_zip_or_file_from_path(path_or_df, default_topic)

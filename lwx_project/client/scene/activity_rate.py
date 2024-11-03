@@ -15,7 +15,7 @@ class MyActivityRateClient(BaseWindow):
         self.setWindowTitle("活动率画图——By LWX")
 
         self.upload_table_button.clicked.connect(self.upload_and_plot)
-        self.download_table_button.clicked.connect(lambda: self.download_zip_from_path(path=DATA_TMP_PATH, default_topic="活动率画图"))
+        self.download_table_button.clicked.connect(lambda: self.download_zip_or_file_from_path(path_or_df=DATA_TMP_PATH, default_topic="活动率画图"))
 
     def upload_and_plot(self):
         self.clear_tmp_and_copy_important(tmp_path=DATA_TMP_PATH)

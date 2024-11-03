@@ -79,6 +79,7 @@
     给个示例
     精细的控制图的表现
     目前写死读取「总表」存在问题，需要传过去
+    上传文件的按钮居中一下
 
 
 系统设计
@@ -87,7 +88,43 @@
     每个场景写一个说明
     日志系统
     清理所有场景的before_run，用类方法
-    将tmp路径绑定到window上？
     important路径不满足，给提示，目前直接报错了
-    点击切换场景后先检测当前的important文件是否够，不够给提示
-    上传的文件进行详细的校验
+        当前场景的input按钮点击后触发弹窗
+    上传的文件校验时给一个进度
+
+
+class lazy_deco:
+    class transformer:
+        def __init__(self, func):
+            self.func = func
+
+        def __get__(self, instance, owner):
+            def wrapper(*args, **kwargs):
+                instance._tasks.append((self.func, args, kwargs))
+                return instance
+            return wrapper
+
+    class action:
+        def __init__(self, func):
+            self.func = func
+
+        def __get__(self, instance, owner):
+            def wrapper(*args, **kwargs):
+                for f, args, kwargs in instance._tasks:
+                    f(instance, *args, **kwargs)
+                instance._tasks = []
+                return self.func(instance, *args, **kwargs)
+            return wrapper
+
+class A:
+    def __init__(self):
+        self.result = []
+
+    @lazy_deco.transformer
+    def calculate(self, num1, num2):
+        self.result.append(num1+num2)
+        return self
+
+    @lazy_deco.action
+    def get_result():
+        print(self.result)

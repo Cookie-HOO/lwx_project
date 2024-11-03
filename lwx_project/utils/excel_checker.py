@@ -4,6 +4,7 @@ import typing
 import pandas as pd
 
 from lwx_project.utils.file import get_file_name_with_extension
+from lwx_project.utils.lazy_class import lazy
 
 
 def must_has_df(origin_func):
@@ -15,7 +16,7 @@ def must_has_df(origin_func):
 
 
 class ExcelCheckerWrapper:
-    def __init__(self, excel_path, sheet_name_or_index=None, skiprows: int = 0, col_width=1, cols=None):
+    def __init__(self, excel_path, sheet_name_or_index=None, skiprows: int = 0, col_width=1, cols=None, skip_check_if=False):
         # 初始化校验list
         self._failed_reason = []
 
@@ -28,10 +29,13 @@ class ExcelCheckerWrapper:
         # 读取结果设置
         self.xls = None
         self.df = None
+        self.switch_dfs = []
         self._base_name = ""
         # 读取
-        self.init_file()
+        if not skip_check_if:
+            self.init_file()
 
+    @lazy.transformer
     def init_file(self) -> typing.Optional[pd.DataFrame]:
         """调用之前，必须赋值self._excel_path | self._sheet_name_or_index | self.skiprows"""
         # 读取excel
@@ -76,19 +80,30 @@ class ExcelCheckerWrapper:
             if self.has_cols(self._cols).check_any_failed():
                 return
             df = df[self._cols]
+
+        df.columns = df.columns.map(lambda x: x.replace("\n", "").replace(" ", ""))
+        # 如果存在重复的列，那么取第一个列，去掉后面的重复列
+        if len(list(df.columns)) != len(set(df.columns)):
+            df = df.loc[:, ~df.columns.duplicated()]
+        if df is None:
+            self._failed_reason.append(f"读取失败")
+            return
         self.df = df
 
-    def switch(self, excel_path=None, sheet_name_or_index=None, skiprows: int = 0, col_width=1, cols=None):
+    @lazy.transformer
+    def switch(self, excel_path=None, sheet_name_or_index=None, skiprows: int = 0, col_width=1, cols=None, limit=True):
         assert sheet_name_or_index is not None  # 必须设置
-        self._excel_path = excel_path
+        self.switch_dfs.append(self.df)
+        self._excel_path = excel_path or self._excel_path
         self._sheet_name_or_index = sheet_name_or_index
         self._skiprows = skiprows
         self._col_width = col_width
         self._cols = cols
-        self.init_file()
+        if limit:
+            self.init_file.__wrapped__(self)  # 这里需要立刻执行，不能等懒执行
         return self
 
-    @must_has_df
+    @lazy.transformer
     def row_process(self, row_num, process_func: typing.Callable[[str], str]):
         # todo: 这里行的顺序，num从哪里开始算
         # 预校验
@@ -100,25 +115,27 @@ class ExcelCheckerWrapper:
         self.df.loc[row_num-1] = self.df.loc[row_num-1].apply(process_func)
         return self
 
-    @must_has_df
+    @lazy.transformer
     def column_name_process(self, process_func: typing.Callable[[str], str]):
         self.df.columns = self.df.columns.map(process_func)
         return self
 
+    @lazy.transformer
     def has_sheets(self, sheets: list) -> 'ExcelCheckerWrapper':
         for sheet in sheets:
             if sheet not in self.xls.sheet_names:
                 self._failed_reason.append(f"没有指定工作表：{sheet}")
         return self
 
-    @must_has_df
-    def has_cols(self, cols: list) -> 'ExcelCheckerWrapper':
-        for c in cols:
-            if c not in self.df.columns:
-                self._failed_reason.append(f"没有指定列：{c}")
+    @lazy.transformer
+    def has_cols(self, cols: list, skip_check_if=False) -> 'ExcelCheckerWrapper':
+        if not skip_check_if:
+            for c in cols:
+                if c not in self.df.columns:
+                    self._failed_reason.append(f"没有指定列：{c}")
         return self
 
-    @must_has_df
+    @lazy.transformer
     def has_values(self, values, col_num_or_name=None, row_num=None) -> 'ExcelCheckerWrapper':
         # 预校验
         rows, cols = self.df.shape
@@ -147,17 +164,21 @@ class ExcelCheckerWrapper:
                     self._failed_reason.append(f"第{row_num}行没有值{value}")
         return self
 
-    @must_has_df
+    @lazy.transformer
     def no_dup_values(self, col) -> 'ExcelCheckerWrapper':
         duplicates = self.df[self.df[col].duplicated()][col].to_list()
         if duplicates:
             self._failed_reason.append(f"列{col}存在重复值{duplicates}")
         return self
 
+    @lazy.action
     def check_all_pass(self) -> bool:
+        self.switch_dfs.append(self.df)
         return len(self._failed_reason) == 0
 
+    @lazy.action
     def check_any_failed(self) -> bool:
+        self.switch_dfs.append(self.df)
         return len(self._failed_reason) > 0
 
     @property
