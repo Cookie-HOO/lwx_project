@@ -116,6 +116,40 @@ class TableWidgetWrapper:
                 elif isinstance(item, QComboBox):
                     self.table_widget.setCellWidget(i, j, item)
 
+    def add_row_with_color(
+            self,
+            value_list: list,
+            cell_style_func: typing.Callable[[list, int], QColor] = None,
+            cell_widget_func: typing.Callable[[list, int], QWidget] = None,
+    ):
+        row_idx = self.table_widget.rowCount()
+        self.table_widget.insertRow(row_idx)
+        self.set_row(row_idx, value_list, cell_style_func, cell_widget_func)
+
+    def set_row(
+            self, i, value_list,
+            cell_style_func: typing.Callable[[list, int], QColor] = None,
+            cell_widget_func: typing.Callable[[list, int], QWidget] = None,
+        ):
+        for col_idx, value in enumerate(value_list):
+            # 尝试用 widget 显示内容
+            if cell_widget_func is not None:
+                widget = cell_widget_func(value_list, col_idx)
+                if widget is not None:
+                    self.table_widget.setCellWidget(i, col_idx, widget)
+                    continue
+
+            # 默认使用 QTableWidgetItem
+            item = QTableWidgetItem(str(value))
+
+            # 设置样式
+            if cell_style_func is not None:
+                color = cell_style_func(value_list, col_idx)
+                if color:
+                    item.setBackground(QBrush(color))
+
+            self.table_widget.setItem(i, col_idx, item)
+
     def get_data_as_df(self) -> pd.DataFrame:
         headers = []
         for i in range(self.table_widget.columnCount()):
@@ -133,6 +167,9 @@ class TableWidgetWrapper:
             data.append(row_data)
         df = pd.DataFrame(data, columns=headers)
         return df
+
+    def set_cell(self, i, j, text):
+        self.table_widget.setItem(i, j, QTableWidgetItem(text))
 
     def clear(self):
         """全部清空"""

@@ -10,7 +10,7 @@ from PyQt5.QtGui import QPixmap
 
 from lwx_project.client.const import *
 from lwx_project.client.utils.exception import ClientWorkerException
-from lwx_project.client.utils.message_widget import TipWidgetWithCountDown
+from lwx_project.client.utils.message_widget import TipWidgetWithCountDown, TipWidgetWithLoading, MyQMessageBox
 from lwx_project.utils.file import get_file_name_without_extension, copy_file, get_file_name_with_extension, make_zip
 from lwx_project.utils.logger import logger_sys_error
 from lwx_project.utils.time_obj import TimeObj
@@ -130,15 +130,12 @@ class BaseWindow(QMainWindow):
             ele.addItems(json.loads(item))
 
     ############ 组件封装 ############
-    def modal(self, level, msg, title=None, done=None, async_run=None, **kwargs):
+    def modal(self, level, msg, title=None, done=None, **kwargs):
         """
         :param level:
         :param msg:
         :param title:
         :param done:
-        :param async_run: 是否异步执行，即弹窗之后不影响UI继续进行
-            默认False，即弹窗之后必须等待用户手动ok或手动关闭
-            仅支持tip（默认True）info（默认False）
         :param kwargs
             count_down
         :return:
@@ -150,11 +147,9 @@ class BaseWindow(QMainWindow):
         if level == "info":
             if done:
                 self.done = True
-            if async_run:  # 只有info支持 async_run
-                msgBox = QMessageBox(QMessageBox.Information, title, msg)
-                msgBox.finished.connect(lambda: self.modal_list.remove(msgBox))  # 在弹窗关闭时从列表中移除
-                msgBox.show()
-                self.modal_list.append(msgBox)  # 将弹窗添加到列表中，保持引用
+            if kwargs.get("funcs") or kwargs.get("width") or kwargs.get("height"):
+                MyQMessageBox(title=title, msg=msg, width=kwargs.get("width"), height=kwargs.get("height"),
+                              funcs=kwargs.get("funcs"))
             else:
                 QMessageBox.information(self, title, msg)
         elif level == "warn":
@@ -167,13 +162,19 @@ class BaseWindow(QMainWindow):
                 self.done = True
             QMessageBox.critical(self, title, msg)
         elif level == "check_yes":  # 只要yes（点击No或者关闭，reply都是一个值）
+            default_yes_or_false = kwargs.get("default") or "yes"
+            default = QMessageBox.No
+            if default_yes_or_false.lower() == "yes":
+                default = QMessageBox.Yes
             reply = QMessageBox.question(
-                self, title, msg, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                self, title, msg, QMessageBox.Yes | QMessageBox.No, default)
             return reply == QMessageBox.Yes
         elif level == "tip":
             count_down = kwargs.get("count_down", 3)
-            async_run = async_run or async_run is None  # 默认就是异步
-            TipWidgetWithCountDown(msg=msg, count_down=count_down, async_run=async_run, outer_container=self.modal_list)
+            TipWidgetWithCountDown(msg=msg, count_down=count_down)
+        elif level == "loading":
+            tip_with_loading = TipWidgetWithLoading()
+            return tip_with_loading
 
     # 上传
     def upload_file_modal(
