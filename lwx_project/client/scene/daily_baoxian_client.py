@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 import time
 import typing
 
@@ -64,13 +65,16 @@ class Worker(BaseWorker):
             browser_type = self.get_param("browser_type")
             browser_bin_path = self.get_param("browser_bin_path")
 
+            # 修改异步策略
+            if sys.platform == "win32":
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            elif sys.platform == 'darwin':
+                # 设置事件循环策略：避免 SIGCHLD 问题
+                policy = asyncio.WindowsSelectorEventLoopPolicy() if os.name == 'nt' else asyncio.DefaultEventLoopPolicy()
+                asyncio.set_event_loop_policy(policy)
 
-            # 设置事件循环策略：避免 SIGCHLD 问题
-            policy = asyncio.WindowsSelectorEventLoopPolicy() if os.name == 'nt' else asyncio.DefaultEventLoopPolicy()
-            asyncio.set_event_loop_policy(policy)
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
 
 
             # 确保检查登录的浏览器实例已完全关闭
@@ -82,7 +86,7 @@ class Worker(BaseWorker):
             from lwx_project.scene.daily_baoxian.workers.bid_info_worker import bid_info_worker
 
             worker_manager.add_worker(bid_info_worker)
-            # worker_manager.add_worker(gov_buy_worker)
+            worker_manager.add_worker(gov_buy_worker)
 
             # worker_manager 统一管理所有浏览器实例
 
@@ -283,8 +287,6 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         ],
             # cell_widget_func=new_button
         )
-        with open(os.path.join(PROJECT_PATH, "baoxian_detail", f"{item.simple_title}.txt"), "w") as f:
-            f.write(item.detail)
 
     def custom_after_one_retry_baoxian_done(self, res):
         item = res.get("baoxian_item")

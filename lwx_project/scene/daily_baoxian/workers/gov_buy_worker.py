@@ -63,7 +63,7 @@ tags_text:
         self.budget = self.get_default_budget()
 
         # 精简的标题
-        self.simple_title = self.get_default_simple_title()
+        self.simple_title = self.get_default_simple_title(self.buyer_name)
 
         # 截止日期
         self.get_bid_until = self.get_default_get_bid_until()

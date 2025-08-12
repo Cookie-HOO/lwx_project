@@ -47,7 +47,7 @@ class BidInfoBaoxianItem(BaoxianItem):
         # 采购人
         self.buyer_name = self.get_default_buyer_name()
         # 精简的title（去掉采购人的信息，以及去掉省市信息）
-        self.simple_title = self.get_default_simple_title()
+        self.simple_title = self.get_default_simple_title(self.buyer_name)
         return self
 
 class BidInfoWorker(Worker):
@@ -128,16 +128,22 @@ class BidInfoWorker(Worker):
                 # 切换到新建的页面
                 new_page = popup_info.value
                 detail_url = new_page.url
-
+                new_page.wait_for_load_state("networkidle")
+                while self.has_captcha(new_page):
+                    print("等待人机验证")
+                    time.sleep(2)
+                print("人机验证通过")
+                new_page.wait_for_load_state("networkidle")
                 page_error, content_text = BidInfoWorker.find_iframe_detail(new_page)
+                print(content_text)
                 # 关闭打开的页面，回到原来的内容
                 new_page.close()
 
-                baoxian_item.set_url(new_page.url).set_detail(content_text)
+                baoxian_item.set_url(detail_url).set_detail(content_text)
                 baoxian_item.success = not page_error
                 if call_back_after_one_done is not None:
                     call_back_after_one_done(baoxian_item)
-                time.sleep(random.uniform(20, 30))
+                # time.sleep(random.uniform(20, 30))
 
             if need_stop_go_to_next_page:
                 break
@@ -229,6 +235,21 @@ class BidInfoWorker(Worker):
             print("等待登陆")
             time.sleep(3)
         print("登陆成功")
+
+    @staticmethod
+    def has_captcha(page):
+        try:
+            page.locator("iframe").first.wait_for(state="attached", timeout=10000)
+        except Exception:
+            return False
+        iframe_obj = page.locator("iframe")
+        count = iframe_obj.count()
+        for i in range(count):
+            iframe_one_obj = iframe_obj.nth(i)
+            if "ptcha" in (iframe_one_obj.get_attribute("src") or ""):
+                return True
+        return False
+
 
 
 bid_info_worker = BidInfoWorker(PLATFORM)
