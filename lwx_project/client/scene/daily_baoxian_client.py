@@ -61,7 +61,6 @@ class Worker(BaseWorker):
             print("search_baoxian")
             start_date = self.get_param("start_date")
             end_date = self.get_param("end_date")
-            run_mute = self.get_param("run_mute")
             browser_type = self.get_param("browser_type")
             browser_bin_path = self.get_param("browser_bin_path")
 
@@ -220,7 +219,7 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         self.reset_button.clicked.connect(self.reset)
 
         # 重试按钮
-        self.retry_failed_baoxian_button.clicked.connect(self.retry_failed_baoxian)
+        # self.retry_failed_baoxian_button.clicked.connect(self.retry_failed_baoxian)
 
         # 下载按钮
         self.df_result = None
@@ -243,7 +242,6 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
             "stage": "search_baoxian",
             "start_date": self.baoxian_start_date_wrapper.get().date_str,
             "end_date": self.baoxian_end_date_wrapper.get().date_str,
-            "run_mute": self.run_mute_checkbox.isChecked(),
             "browser_bin_path": self.browser_bin_path_text.text(),
             "browser_type": self.browser_selector.currentText(),   # Chrome ｜ Edge
         }

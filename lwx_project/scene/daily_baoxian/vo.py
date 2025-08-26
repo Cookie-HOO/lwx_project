@@ -8,6 +8,7 @@ from lwx_project.utils.browser import init_local_browser, close_all_browser_inst
 
 from playwright.sync_api import sync_playwright
 
+from lwx_project.utils.date import add_days_skip_weekends
 from lwx_project.utils.strings import is_all_chinese
 
 
@@ -137,10 +138,11 @@ class BaoxianItem:
         patterns = [
             "预\s*算\s*金\s*额\s*[:：]\s*(.*?\d.*?)[\n。，]",
             "项\s*目\s*预\s*算\s*[:：]\s*(.*?\d.*?)[\n。，]",
-            "预\s*算\s*金\s*额\s*为\s*(.*?\d.*?)[\n。，]",
-            "项\s*目\s*预\s*算\s*为\s*(.*?\d.*?)[\n。，]",
+            "预\s*算\s*金\s*额\s*为?\s*(.*?\d.*?)[\n。，]",
+            "项\s*目\s*预\s*算\s*为?\s*(.*?\d.*?)[\n。，]",
             "预\s*算\s*金\s*额\s*(.*?\d.*?)[\n。，]",
             "项\s*目\s*预\s*算\s*(.*?\d.*?)[\n。，]",
+            "采\s*购\s*预\s*算\s*价\s*为?\s*(.*?\d.*?)[\n。，]"
         ]
         for pattern in patterns:
             result = self.get_budget_with_re(pattern, text=self.detail)
@@ -162,12 +164,19 @@ class BaoxianItem:
         """
         # text = self.detail.replace("\n", "").replace("年年", "年").replace("月月", "月").replace("日日", "日")
         text = self.detail.replace("到", "至")
-        patterns = [
-            r"获\s*取\s*招\s*标\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
-            r"获\s*取\s*采\s*购\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
-            r"获\s*取\s*竞\s*争\s*性\s*磋\s*商\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
-            r"获\s*取\s*文\s*件\s*期\s*限\s*.{1,30}?至(.*?)[日,，]",
-            r"获\s*取\s*.{1,8}文\s*件\s*.{1,30}?至(.*?)[日,，]",
+        patterns1 = [
+            "获\s*取\s*"
+        ]
+        patterns2 = [
+            r"招\s*标\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
+            r"采\s*购\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
+            r"竞\s*争\s*性\s*磋\s*商\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
+            r"磋\s*商\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
+            r"文\s*件\s*期\s*限\s*.{1,30}?至(.*?)[日,，]",
+            r"{1,8}文\s*件\s*.{1,30}?至(.*?)[日,，]",
+        ]
+        patterns3 = [
+
         ]
         for pattern in patterns:
             get_bid_until = self.get_bid_until_with_re(pattern, text)
@@ -176,12 +185,30 @@ class BaoxianItem:
 
         # 特殊的写法：时间：自招标文件公告发布之日起5个工作日 ｜ 时间：自磋商文件公告发布之日起5个工作日 ｜ 时间：自本文件公告发布之日起5个工作日
         patterns1 = [
-            "获取招标文件\s*时间：自招标文件公告发布之日起(\d)个工作日",
-            "获取招标文件\s*自招标文件公告发布之日起(\d)个工作日",
-            "获取招标文件\s*自招标文件公告发布之日起(\d)个工作日",
+            "获\s*取\s*招\s*标\s*文\s*件\s*",
+            "获\s*取\s*采\s*购\s*文\s*件\s*",
+            "获\s*取\s*文\s*件\s*期\s*限\s*",
         ]
-        return ""
+        patterns2 = [
+            "",
+            "时间[:：]",
+        ]
+        patterns3 = [
+            "自招标文件公告发布之日起(.*?)个工作日",
+            "自磋商文件公告发布之日起(.*?)个工作日",
+            "自本文件公告发布之日起(.*?)个工作日",
+        ]
+        for pattern1 in patterns1:
+            for pattern2 in patterns2:
+                for pattern3 in patterns3:
+                    pattern = pattern1 + pattern2 + pattern3
+                    days = self.parse_detail(pattern, text=self.detail.replace("\n", ""))
+                    if days.isdigit():
+                        days_int = int(days)
+                        until_date = add_days_skip_weekends(self.publish_date, days_int)
+                        return until_date.replace("-", "/")
 
+        return ""
 
 
         # parsed_get_bid_until = self.parse_detail("获\s*取\s*招\s*标\s*文\s*件\s*.*?至(.*?)[日,，]", from_bottom_to_top=True).strip() or \

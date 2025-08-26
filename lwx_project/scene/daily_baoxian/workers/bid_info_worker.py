@@ -431,7 +431,7 @@ class BidInfoWorker(Worker):
                     print("人机验证通过")
 
                     # 再次等待，避免验证后页面未加载
-                    new_page.wait_for_load_state("networkidle", timeout=10000)
+                    # new_page.wait_for_load_state("networkidle", timeout=10000)
 
                     # 检查是否加载了真实内容（非验证码页、非空白页）
                     current_url = new_page.url
@@ -440,6 +440,7 @@ class BidInfoWorker(Worker):
                             and "verify" not in current_url
                             and "security" not in current_url
                             and "captcha" not in current_url
+                            and "vaptcha" not in current_url
                             and current_url != "about:blank"
                             and current_url != self.URL
                     ):
@@ -535,9 +536,10 @@ class BidInfoWorker(Worker):
                 content_text = iframe_locator.locator("#viewer").inner_text()
                 if len(content_text) == 0:
                     page_error = True
-            except Exception:
+            except Exception as e:
                 content_text = "获取失败"
                 page_error = True
+                print(f"获取失败：{str(e)}")
         return page_error, content_text
 
     @staticmethod

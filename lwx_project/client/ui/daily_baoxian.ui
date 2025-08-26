@@ -130,16 +130,6 @@
        </widget>
       </item>
       <item>
-       <widget class="QCheckBox" name="run_mute_checkbox">
-        <property name="text">
-         <string>静默执行</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
        <widget class="QDateEdit" name="baoxian_start_date">
         <property name="calendarPopup">
          <bool>true</bool>
@@ -172,13 +162,6 @@
          </size>
         </property>
        </spacer>
-      </item>
-      <item>
-       <widget class="QPushButton" name="retry_failed_baoxian_button">
-        <property name="text">
-         <string>🔄重试</string>
-        </property>
-       </widget>
       </item>
       <item>
        <widget class="QPushButton" name="download_file_button">

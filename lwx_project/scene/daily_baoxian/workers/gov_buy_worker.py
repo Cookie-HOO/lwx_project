@@ -51,7 +51,7 @@ tags_text:
 
         # 在摘要中就可以解析的内容
         # 发布日期
-        self.publish_date = self._publish_date.split(" ")[0]
+        self.publish_date = self._publish_date.split(" ")[0].replace(".", "-").replace("/", "-")
         # 省市：tag中有最准的省市，如果没有，从采购人中获取，如果再没有从title中获取
         self.province = self._province or \
                         GovBuyBaoxianItem.get_province_abbr_first(self._buyer_name) or \
