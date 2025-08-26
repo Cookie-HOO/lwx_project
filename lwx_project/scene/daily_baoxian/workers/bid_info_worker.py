@@ -11,6 +11,8 @@ from lwx_project.scene.daily_baoxian.vo import BaoxianItem, Worker
 from lwx_project.utils.browser import init_local_browser, click_item, close_all_browser_instances
 from playwright.sync_api import sync_playwright
 
+from lwx_project.utils.strings import dedup_lines, is_any_digits
+
 PLATFORM = "中国招标投标公共服务平台"
 
 class BidInfoBaoxianItem(BaoxianItem):
@@ -33,22 +35,311 @@ class BidInfoBaoxianItem(BaoxianItem):
         self.url = url
         return self
 
-    def parse_from_detail(self):
-        """
-        self.simple_title = "",
-        self.buyer_name = "",
-        self.budget = "",
-        self.get_bid_until = "",
-        """
-        # 获取采购文件截止日期
-        self.get_bid_until = self.get_default_get_bid_until()
-        # 预算
-        self.budget = self.get_default_budget()
-        # 采购人
-        self.buyer_name = self.get_default_buyer_name()
-        # 精简的title（去掉采购人的信息，以及去掉省市信息）
-        self.simple_title = self.get_default_simple_title(self.buyer_name)
+    def set_detail(self, detail):
+        dedup_detail = dedup_lines(detail)
+        super().set_detail(dedup_detail)
         return self
+
+    def get_default_buyer_name(self):
+        """
+采购人信息
+名称：
+宣城职业技术学院
+
+
+1.采购人信息
+采购人名称：
+福州市鼓楼区城市管理
+和综合执法局
+        """
+        buyer_name = \
+            self.parse_detail("招\s*标\s*人\s*[:：]\s*(.*?)\n").strip(":").strip("：").strip() or \
+            self.parse_detail("采\s*购\s*人\s*信\s*息\s*[:：]?\s*名\s*称\s*[:：]?\s*(.*?)\n").strip(":").strip("：").strip() or \
+            self.parse_detail("采\s*购\s*人\s*信\s*息\s*[:：]?.*?名\s*称\s*[:：]?\s*(.*?)地址").strip(":").strip("：").strip() or \
+            self.parse_detail("招\s*标\s*人\s*为[:：]?\s*(.*?)[。，]").strip(":").strip("：").strip() or \
+            self.parse_detail("采\s*购\s*人\s*为[:：]?\s*(.*?)[。，]").strip(":").strip("：").strip() or \
+            self.parse_detail("采\s*购\s*人\s*[:：]?\n\s*(.*?)[。，]", from_bottom_to_top=True).strip(":").strip("：").strip()
+        buyer_name = buyer_name.replace("\n", "")
+        return buyer_name
+
+    def get_budget_with_re(self, pattern, text):
+        origin_parsed_budget = self.parse_detail(pattern, text=text)
+        parsed_budget = origin_parsed_budget
+        if parsed_budget.startswith("约"):
+            parsed_budget = parsed_budget[1:]
+        if parsed_budget.startswith("为"):
+            parsed_budget = parsed_budget[1:]
+        parsed_budget = parsed_budget.replace("人民币", "")
+        if not is_any_digits(parsed_budget):
+            return ""
+        try:
+            if parsed_budget.endswith("万元") or parsed_budget.startswith("万元"):
+                parsed_budget = parsed_budget.replace("万元", "").strip()
+                parsed_budget = str(float(parsed_budget.replace(",", "")))
+            elif parsed_budget.endswith("元") or (
+                    len(parsed_budget) > 0 and parsed_budget[-1].isdigit()) or parsed_budget.startswith("元"):
+                parsed_budget = parsed_budget.replace("元", "").strip()
+                parsed_budget = str(float(parsed_budget.replace(",", "")) / 10000)
+            else:
+                pass
+        except ValueError:
+            if len(parsed_budget.split("\n")) > 2 and len(parsed_budget) > 50:  # 是一个长字符串
+                return ""
+            return origin_parsed_budget  # 解析失败返回最原始的内容
+        return parsed_budget
+
+    def get_default_budget_(self):
+        """
+预估金额：
+ 458.91
+万元
+
+项目资金来源为其他资金
+ 498240.00
+元
+
+3、本项目预算为：45万元/年。
+
+预算金额：
+40
+万元
+
+预算：
+4 8
+万元；
+
+采购包预算金额（元）:280,000.00
+
+1.1.4预估采购金额：100000元（含税）。
+
+本项目最高限价为
+3
+0000
+元，超过最高限价视为无效报价。
+
+
+、预算资金：自筹资金
+ 18.32
+ 万元
+
+最高限价为
+3000
+元
+/
+人
+.
+年
+
+
+预算金额（最高限价）：
+ 206
+元
+/
+人
+/
+年
+
+项目控制价：
+90
+万元
+/
+年
+        """
+        # 先尝试全文寻找
+        global_patterns = [
+            r"项\s*目\s*预\s*算\s*为\s*[:：]?\s*(.*?)\n"
+        ]
+        patterns = [
+            r"总\s*预\s*算\s*为\s*[:：]?\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"招\s*标\s*控\s*制\s*价\s*[:：]?\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"资\s*金\s*来\s*源\s*为\s*其\s*他\s*资\s*金\s*[:：]?\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"资\s*金\s*来\s*源\s*为\s*自\s*筹\s*资\s*金\s*[:：]?\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"项\s*目\s*采\s*购\s*预\s*算\s*为\s*[:：]?\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"预\s*估\s*金\s*额\s*[:：]\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"预\s*估\s*金\s*额\s*[:：]?\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"预\s*估\s*采\s*购\s*金\s*额\s*[:：]\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"预\s*估\s*采\s*购\s*金\s*额\s*[:：]?\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"预\s*算\s*金\s*额\s*[:：]\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"预\s*算\s*金\s*额\s*[:：]?\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"预\s*算\s*.{1,10}\s*资\s*金\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"预\s*算\s*[:：]?\s*(.*?\s*元\s*/\s*人?\s*/?\s*年?)",
+            r"预\s*算\s*[:：]?\s*(.*?\s*)",
+        ]
+
+
+        for g_pattern in global_patterns:
+            result = self.get_budget_with_re(g_pattern, self.detail)
+            if result:
+                return result
+
+        text = self.detail.replace("\n", "").replace(" ", "")
+
+        for pattern in patterns:
+            result = self.get_budget_with_re(pattern, text)
+            if result:
+                return result
+        return ""
+        #
+        # parsed_budget = self.parse_detail("项\s*目\s*预\s*算\s*为\s*[:：]?\s*(.*?)\n")
+        # # 再尝试去掉换行符，整个拼到一起寻找
+        # if not parsed_budget:
+        #     text = self.detail.replace("\n", "").replace(" ", "")
+        #     parsed_budget = \
+        #         self.parse_detail("总\s*预\s*算\s*为\s*[:：]?\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("招\s*标\s*控\s*制\s*价\s*[:：]?\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("资\s*金\s*来\s*源\s*为\s*其\s*他\s*资\s*金\s*[:：]?\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("资\s*金\s*来\s*源\s*为\s*自\s*筹\s*资\s*金\s*[:：]?\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("预\s*估\s*金\s*额\s*[:：]\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("预\s*估\s*金\s*额\s*[:：]?\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("预\s*估\s*采\s*购\s*金\s*额\s*[:：]\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("预\s*估\s*采\s*购\s*金\s*额\s*[:：]?\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("预\s*算\s*金\s*额\s*[:：]\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("预\s*算\s*金\s*额\s*[:：]?\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("预\s*算\s*.{1,10}\s*资\s*金\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("预\s*算\s*[:：]?\s*(.*?\s*元)", text=text) or \
+        #         self.parse_detail("预\s*算\s*[:：]?\s*(.*?\s*)", text=text)
+        #     if parsed_budget.startswith("约"):
+        #         parsed_budget = parsed_budget[1:]
+        #     if parsed_budget.startswith("为"):
+        #         parsed_budget = parsed_budget[1:]
+        #     parsed_budget = parsed_budget.replace("人民币", "")
+        #     if not is_any_digits(parsed_budget):
+        #         return ""
+        # try:
+        #     if parsed_budget.endswith("万元") or parsed_budget.startswith("万元"):
+        #         parsed_budget = parsed_budget.replace("万元", "").strip()
+        #         parsed_budget = str(float(parsed_budget.replace(",", "")))
+        #     elif parsed_budget.endswith("元") or (len(parsed_budget) > 0 and parsed_budget[-1].isdigit()) or parsed_budget.startswith("元"):
+        #         parsed_budget = parsed_budget.replace("元", "").strip()
+        #         parsed_budget = str(float(parsed_budget.replace(",", "")) / 10000)
+        #     else:
+        #         pass
+        # except ValueError:
+        #     pass
+        # return parsed_budget
+
+    def get_default_budget(self):
+        """从定位到的关键字往后找"""
+        budget = self.get_default_budget_()
+        if budget:
+            return budget
+        text = self.detail.replace("\n", "").replace(" ", "")
+        keywords = ["项目预算", "预算金额", "预估金额", "资金来源", "预算", "最高限价"]
+        budget = ""
+        is_wan = False  # 是否是万元
+        is_precent = False
+        threshold = 20
+        stop = False
+        for keyword in keywords:
+            if stop:
+                break
+            position = text.find(keyword)
+            if position == -1:
+                continue
+            stop = True
+            target_text = text[position: position + threshold + len(keyword)]
+            for pointer_text in target_text:
+                if pointer_text.isdigit() or pointer_text == "." or pointer_text == ",":
+                    budget += pointer_text
+                elif pointer_text == "万":
+                    is_wan = True
+                    break
+                elif pointer_text == "%":
+                    is_precent = True
+                    break
+        if stop and budget and not is_precent:
+            if is_wan:
+                parsed_budget = str(float(budget.replace(",", "")))
+            else:
+                parsed_budget = str(float(budget.replace(",", "")) / 10000)
+            return parsed_budget
+        return ""
+
+    def get_default_get_bid_until(self):
+        """
+三、获取采购文件
+3.1
+时间：
+202
+5
+年
+年
+5
+月
+月
+20
+日至
+202
+4
+年
+年
+5
+月
+月
+2
+7
+日
+日
+
+竞争性磋商文件获取期限：
+2025
+年
+04
+月
+23
+日至
+2025
+年
+04
+月
+29
+日止
+
+询比文件获取时间
+
+获取询价文件时间、地点、方式：
+1
+、时间：即日起至
+2025
+
+获取采购文件
+时间：
+2025年0
+4
+月
+29
+日至
+2025年0
+5
+月
+06
+日，每天上午
+8:30至12:00，下午14:3
+        """
+        text = self.detail.replace("\n", "").replace("年年", "年").replace("月月", "月").replace("日日", "日")
+        text = text.replace("到", "至")
+        patterns = [
+            r"文\s*件\s*获\s*取\s*期\s*限\s*[:：]?\s*.*?至(.*?)[日,，]",
+            r"文\s*件\s*的\s*获\s*取\s*[:：]?\s*.*?至(.*?)[日,，]",
+            r"文\s*件\s*获\s*取\s*时\s*间\s*[:：]?\s*.*?至(.*?)[日,，]",
+            r"文\s*件\s*询\s*价\s*时\s*间\s*[:：]?\s*.*?至(.*?)[日,，]",
+            r"询\s*价\s*文\s*件\s*时\s*间\s*[:：]?\s*.*?至(.*?)[日,，]",
+            r"招\s*标\s*文\s*件\s*的\s*获\s*取\s*.*?至(.*?)[日,，]",
+            r"获\s*取\s*采\s*购\s*文\s*件\s*时\s*间\s*.*?至(.*?)[日,，]",
+            r"获\s*取\s*招\s*标\s*文\s*件\s*时\s*间\s*.*?至(.*?)[日,，]",
+            r"获\s*取\s*文\s*件\s*时\s*间\s*.*?至(.*?)[日,，]",
+            r"获\s*取\s*采\s*购\s*文\s*件\s*.*?至(.*?)[日,，]",
+            r"获\s*取\s*招\s*标\s*文\s*件\s*.*?至(.*?)[日,，]",
+            r"获\s*取\s*招\s*标\s*文\s*件\s*.*?至(.*?)[日,，]",
+            r"采\s*购\s*文\s*件\s*的\s*提\s*供\s*期\s*限\s*.*?至(.*?)[日,，]",
+            r"招\s*标\s*文\s*件\s*获\s*取\s*.*?至(.*?)[日,，]",
+        ]
+        for pattern in patterns:
+            get_bid_until = self.get_bid_until_with_re(pattern, text)
+            if get_bid_until:
+                return get_bid_until
+        return ""
+
 
 class BidInfoWorker(Worker):
     URL = "https://ctbpsp.com/#/"
@@ -121,26 +412,58 @@ class BidInfoWorker(Worker):
                     pass
                 else:
                     continue  # 跳过这一项
-                # 使用 expect_popup 来处理新标签页
-                with page.expect_popup() as popup_info:
-                    baoxian_pointer.locator("p").click()  # 这次点击会打开新页面
 
-                # 切换到新建的页面
-                new_page = popup_info.value
-                detail_url = new_page.url
-                new_page.wait_for_load_state("networkidle")
-                while self.has_captcha(new_page):
+                # --- 新增：循环尝试打开真实页面，直到成功加载 ---
+                detail_url = None
+                final_page = None  # 用于保存成功加载的页面
+
+                for _ in range(2):  # 最多尝试2次点击
+                    with page.expect_popup() as popup_info:
+                        baoxian_pointer.locator("p").click()  # 打开新页面
+
+                    new_page = popup_info.value
+                    new_page.wait_for_load_state("load", timeout=10000)
+
+                    # 处理人机验证
                     print("等待人机验证")
-                    time.sleep(2)
-                print("人机验证通过")
-                new_page.wait_for_load_state("networkidle")
-                page_error, content_text = BidInfoWorker.find_iframe_detail(new_page)
-                print(content_text)
-                # 关闭打开的页面，回到原来的内容
-                new_page.close()
+                    while self.has_captcha(new_page):
+                        time.sleep(2)
+                    print("人机验证通过")
 
-                baoxian_item.set_url(detail_url).set_detail(content_text)
-                baoxian_item.success = not page_error
+                    # 再次等待，避免验证后页面未加载
+                    new_page.wait_for_load_state("networkidle", timeout=10000)
+
+                    # 检查是否加载了真实内容（非验证码页、非空白页）
+                    current_url = new_page.url
+                    if (
+                            current_url
+                            and "verify" not in current_url
+                            and "security" not in current_url
+                            and "captcha" not in current_url
+                            and current_url != "about:blank"
+                            and current_url != self.URL
+                    ):
+                        detail_url = current_url
+                        final_page = new_page  # 保留这个有效的页面
+                        break  # 成功打开，跳出重试
+                    else:
+                        new_page.close()  # 关闭无效页面
+                        time.sleep(1)
+
+                # --- 只有成功打开后，才提取内容 ---
+                if final_page and detail_url:
+                    # 此时页面已加载真实内容，再获取详情
+                    page_error, content_text = BidInfoWorker.find_iframe_detail(final_page)
+                    print(content_text)
+                    final_page.close()  # 提取完成后关闭
+
+                    baoxian_item.set_url(detail_url).set_detail(content_text)
+                    baoxian_item.success = not page_error
+                else:
+                    # 所有尝试都失败
+                    baoxian_item.set_url("").set_detail("")
+                    baoxian_item.success = False
+
                 if call_back_after_one_done is not None:
                     call_back_after_one_done(baoxian_item)
                 # time.sleep(random.uniform(20, 30))

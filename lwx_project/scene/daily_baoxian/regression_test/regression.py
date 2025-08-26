@@ -237,7 +237,7 @@ class BaoxianItem:
             self.parse_detail("采\s*购\s*人\s*[:：]?\s*(.*?)\n", from_bottom_to_top=True).strip(":").strip("：").strip()
 
 
-class BidItem(BaoxianItem):
+class BidBaoxianItem(BaoxianItem):
 
     def set_detail(self, detail):
         dedup_detail = dedup_lines(detail)
@@ -550,7 +550,7 @@ need_test_again = [
 ]
 
 problems = [
-    8,  # 时间：自招标文件公告发布之日起5个工作日
+    8,   # 时间：自招标文件公告发布之日起5个工作日
     27,  # 时间：自招标文件公告发布之日起5个工作日
     28,  # 时间：自磋商文件公告发布之日起5个工作日
     64,  # 自本公告发布之日起5个工作日
@@ -630,7 +630,7 @@ for idx, row in df.iterrows():
     if platform == "中国政府采购网":
         baoxian_item = BaoxianItem(platform="", title=source_title, bid_type="")
     elif platform == "中国招标投标公共服务平台":
-        baoxian_item = BidItem(platform="", title=source_title, bid_type="")
+        baoxian_item = BidBaoxianItem(platform="", title=source_title, bid_type="")
     else:
         continue
 

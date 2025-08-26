@@ -1,3 +1,4 @@
+import datetime
 import re
 import time
 import typing
@@ -19,6 +20,7 @@ class BaoxianItem:
         self.detail = ""
         self.publish_date = ""
 
+        # check时进行校验
         self.default_available = True
         self.not_available_reason = ""
 
@@ -47,8 +49,9 @@ class BaoxianItem:
         return self
 
     # 正则匹配detail的工具函数
-    def parse_detail(self, pattern, condition=None, extract_index=None, from_bottom_to_top=False) -> typing.Union[str, typing.Tuple[str]]:
-        res = re.findall(pattern, self.detail, re.DOTALL)
+    def parse_detail(self, pattern, text=None, condition=None, extract_index=None, from_bottom_to_top=False) -> typing.Union[str, typing.Tuple[str]]:
+        text = text or self.detail
+        res = re.findall(pattern, text, re.DOTALL)
         if not res:
             return ""
         if from_bottom_to_top:
@@ -61,31 +64,134 @@ class BaoxianItem:
                 return matched if extract_index is None else matched[extract_index]
         return ""
 
-    def get_default_budget(self):
-        parsed_budget = self.parse_detail("预\s*算\s*金\s*额\s*(.*?\d.*?)[\n(（]").strip().replace(" ", "").replace(":", "").replace("：", "").strip() or \
-            self.parse_detail("项\s*目\s*预\s*算\s*(.*?\d.*?)[\n(（]").strip().replace(" ", "").replace(":", "").replace("：", "").strip()
-        parsed_budget = parsed_budget.replace("(", "").replace(")", "").replace("（", "").replace("）", "").replace(":", "").replace("：", "").strip()
+    def parse_detail_simple(self, pattern, text=None):
+        text = text or self.detail
+        res = re.findall(pattern, text, re.DOTALL)
+        return res
+
+    def get_bid_until_with_re(self, pattern, text):
+        parsed_get_bid_untils = self.parse_detail_simple(pattern, text=text)
+        for parsed_get_bid_until in parsed_get_bid_untils:
+            parsed_get_bid_until = parsed_get_bid_until.strip().replace(" ","")
+            # 遍历寻找六个数字
+            parsed_get_bid_until_ = ""
+            parsed_get_bid_until_dig = ""
+            for idx, c in enumerate(parsed_get_bid_until):
+                parsed_get_bid_until_ += c
+                if c.isdigit():
+                    parsed_get_bid_until_dig += c
+                if len(parsed_get_bid_until_dig) == 8:
+                    break
+                if idx > 20:
+                    break
+            try:
+                date_obj = datetime.datetime.strptime(parsed_get_bid_until_dig, "%Y%m%d")
+                return date_obj.strftime("%Y/%m/%d")
+            except ValueError:
+                pass
+        return ""
+        # get_bid_until = parsed_get_bid_until.replace("年", "/").replace("月", "/").replace("-", "/")
+        # return get_bid_until
+
+
+    def get_budget_with_re(self, pattern, text):
+        origin_parsed_budget = self.parse_detail(pattern, text=text).strip()
+        parsed_budget = origin_parsed_budget.replace(" ", "").replace(":", "").replace("：", "").strip()
+        # 处理括号进行备注的情况
+        if "(" in parsed_budget:
+            rest_content = parsed_budget.split("(")[1].replace("\n", "").strip()
+            if rest_content.startswith("元") or rest_content.startswith("万元"):
+                pass
+            else:
+                parsed_budget = parsed_budget.split("(")[0].strip()
+        elif "（" in parsed_budget:
+            rest_content = parsed_budget.split("（")[1].replace("\n", "").strip()
+            if rest_content.startswith("元") or rest_content.startswith("万元"):
+                pass
+            else:
+                parsed_budget = parsed_budget.split("（")[0].strip()
+
+        parsed_budget = parsed_budget.replace("(", "").replace(")", "").replace("（", "").replace("）", "").replace(":","").replace("：", "").strip()
+        parsed_budget = parsed_budget.replace("人民币", "").strip()
         try:
-            if parsed_budget.endswith("万元") or parsed_budget.endswith("万元人民币") or parsed_budget.startswith("万元") or parsed_budget.startswith("万元人民币"):
-                parsed_budget = parsed_budget.replace("万元人民币", "").replace("万元", "").strip()
+            if parsed_budget.endswith("万元") or parsed_budget.startswith("万元"):
+                parsed_budget = parsed_budget.replace("万元", "").strip()
                 parsed_budget = str(float(parsed_budget.replace(",", "")))
-            elif parsed_budget.endswith("元") or parsed_budget.endswith("元人民币") or (len(parsed_budget) > 0 and parsed_budget[-1].isdigit()) or parsed_budget.startswith("元") or parsed_budget.startswith("元人民币"):
-                parsed_budget = parsed_budget.replace("元人民币", "").replace("元", "").strip()
+            elif parsed_budget.endswith("元") or (len(parsed_budget) > 0 and parsed_budget[-1].isdigit()) or parsed_budget.startswith("元"):
+                parsed_budget = parsed_budget.replace("元", "").strip()
                 parsed_budget = str(float(parsed_budget.replace(",", "")) / 10000)
             else:
                 pass
         except ValueError:
-            pass
+            if len(parsed_budget.split("\n")) > 2 and len(parsed_budget) > 50:  # 是一个长字符串
+                return ""
+            return origin_parsed_budget  # 解析失败返回最原始的内容
         return parsed_budget
 
-    def get_default_get_bid_until(self):
-        parsed_get_bid_until = self.parse_detail("获\s*取\s*招\s*标\s*文\s*件\s*\n.*?至(.*?)[日,，]", from_bottom_to_top=True).strip() or \
-                               self.parse_detail("获\s*取\s*采\s*购\s*文\s*件\s*\n.*?至(.*?)[日,，]", from_bottom_to_top=True).strip() or \
-                               self.parse_detail("获\s*取\s*竞\s*争\s*性\s*磋\s*商\s*文\s*件\s*\n.*?至(.*?)[日,，]", from_bottom_to_top=True).strip() or \
-                               self.parse_detail("获\s*取\s*.{1,8}文\s*件\s*\n.*?至(.*?)[日,，]", from_bottom_to_top=True).strip()
 
-        get_bid_until = parsed_get_bid_until.replace("年", "/").replace("月", "/").replace("-", "/")
-        return get_bid_until
+    def get_default_budget(self):
+        """
+        预算金额：130.000000万元（采购包1：55.000000万元；采购包2：35.000000万元；采购包3：28.000000万元；采购包4：12.000000万元）
+
+        """
+        patterns = [
+            "预\s*算\s*金\s*额\s*[:：]\s*(.*?\d.*?)[\n。，]",
+            "项\s*目\s*预\s*算\s*[:：]\s*(.*?\d.*?)[\n。，]",
+            "预\s*算\s*金\s*额\s*为\s*(.*?\d.*?)[\n。，]",
+            "项\s*目\s*预\s*算\s*为\s*(.*?\d.*?)[\n。，]",
+            "预\s*算\s*金\s*额\s*(.*?\d.*?)[\n。，]",
+            "项\s*目\s*预\s*算\s*(.*?\d.*?)[\n。，]",
+        ]
+        for pattern in patterns:
+            result = self.get_budget_with_re(pattern, text=self.detail)
+            if result:
+                return result
+        return ""
+
+    def get_default_get_bid_until(self):
+        """
+三、获取招标文件
+
+时间：自招标文件公告发布之日起5个工作日
+
+
+三、获取公开招标文件的地点、方式、期限及售价
+
+获取文件期限：2025年6月24日 至 2025年7月2日。
+
+        """
+        # text = self.detail.replace("\n", "").replace("年年", "年").replace("月月", "月").replace("日日", "日")
+        text = self.detail.replace("到", "至")
+        patterns = [
+            r"获\s*取\s*招\s*标\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
+            r"获\s*取\s*采\s*购\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
+            r"获\s*取\s*竞\s*争\s*性\s*磋\s*商\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
+            r"获\s*取\s*文\s*件\s*期\s*限\s*.{1,30}?至(.*?)[日,，]",
+            r"获\s*取\s*.{1,8}文\s*件\s*.{1,30}?至(.*?)[日,，]",
+        ]
+        for pattern in patterns:
+            get_bid_until = self.get_bid_until_with_re(pattern, text)
+            if get_bid_until:
+                return get_bid_until
+
+        # 特殊的写法：时间：自招标文件公告发布之日起5个工作日 ｜ 时间：自磋商文件公告发布之日起5个工作日 ｜ 时间：自本文件公告发布之日起5个工作日
+        patterns1 = [
+            "获取招标文件\s*时间：自招标文件公告发布之日起(\d)个工作日",
+            "获取招标文件\s*自招标文件公告发布之日起(\d)个工作日",
+            "获取招标文件\s*自招标文件公告发布之日起(\d)个工作日",
+        ]
+        return ""
+
+
+
+        # parsed_get_bid_until = self.parse_detail("获\s*取\s*招\s*标\s*文\s*件\s*.*?至(.*?)[日,，]", from_bottom_to_top=True).strip() or \
+        #                        self.parse_detail("获\s*取\s*采\s*购\s*文\s*件\s*.*?至(.*?)[日,，]", from_bottom_to_top=True).strip() or \
+        #                        self.parse_detail("获\s*取\s*竞\s*争\s*性\s*磋\s*商\s*文\s*件\s*.*?至(.*?)[日,，]", from_bottom_to_top=True).strip() or \
+        #                        self.parse_detail("获\s*取\s*文\s*件\s*期\s*限\s*.*?至(.*?)[日,，]", from_bottom_to_top=True).strip() or \
+        #                        self.parse_detail("获\s*取\s*.{1,8}文\s*件\s*.*?至(.*?)[日,，]", from_bottom_to_top=True).strip()
+        #
+        # get_bid_until = parsed_get_bid_until.replace("年", "/").replace("月", "/").replace("-", "/")
+        # return get_bid_until
 
     def get_default_simple_title(self, buyer_name):
         # 需要对现有的title进行精简
@@ -109,13 +215,22 @@ class BaoxianItem:
             if parsed_simple_title.startswith(p):
                 parsed_simple_title.replace(p, "")
         # 2.2 删除开头的市信息
-        if parsed_simple_title[2] == "市" and is_all_chinese(parsed_simple_title[:2]):  # xx市
+        if len(parsed_simple_title) > 2 and parsed_simple_title[2] == "市" and is_all_chinese(parsed_simple_title[:2]):  # xx市
             parsed_simple_title = parsed_simple_title[3:]
 
         return parsed_simple_title
 
     def get_default_buyer_name(self):
-        return self.parse_detail("采\s*购\s*人\s*信\s*息.*?名\s*称\s*(,*?)\n").strip(":").strip("：").strip()
+        """
+1、采购人信息
+
+采购人：重庆市九龙坡区残疾人联合会
+        """
+        return \
+            self.parse_detail("采\s*购\s*人\s*信\s*息.*?名\s*称\s*(.*?)\n").strip(":").strip("：").strip() or \
+            self.parse_detail("采\s*购\s*人\s*信\s*息\s*采\s*购\s*人\s*[:：]?\s*(.*?)\n").strip(":").strip("：").strip() or \
+            self.parse_detail("采\s*购\s*人\s*[:：]?\s*(.*?)\n", from_bottom_to_top=True).strip(":").strip("：").strip()
+
 
 class Worker:
     MAX_PAGE_NUM = 10  # 最多n页，不考虑n+1页
