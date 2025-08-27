@@ -194,54 +194,19 @@
        <enum>QAbstractItemView::ScrollPerItem</enum>
       </property>
       <property name="columnCount">
-       <number>12</number>
+       <number>13</number>
       </property>
       <attribute name="verticalHeaderVisible">
        <bool>true</bool>
       </attribute>
       <column>
        <property name="text">
-        <string>地区</string>
+        <string>获取状态</string>
        </property>
       </column>
       <column>
        <property name="text">
-        <string>采购方式</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>项目名称</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>采购单位名称</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>预算/限价（万元）</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>获取招标文件的截止日期</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>招采平台</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>发布日期</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>原标题</string>
+        <string>是否选择</string>
        </property>
       </column>
       <column>
@@ -251,12 +216,80 @@
       </column>
       <column>
        <property name="text">
-        <string>详情信息</string>
+        <string>项目名称</string>
+       </property>
+       <property name="background">
+        <color>
+         <red>207</red>
+         <green>240</green>
+         <blue>198</blue>
+        </color>
        </property>
       </column>
       <column>
        <property name="text">
-        <string>获取状态</string>
+        <string>采购单位名称</string>
+       </property>
+       <property name="background">
+        <color>
+         <red>207</red>
+         <green>240</green>
+         <blue>198</blue>
+        </color>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>预算/限价（万元）</string>
+       </property>
+       <property name="background">
+        <color>
+         <red>207</red>
+         <green>240</green>
+         <blue>198</blue>
+        </color>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>获取招标文件的截止日期</string>
+       </property>
+       <property name="background">
+        <color>
+         <red>207</red>
+         <green>240</green>
+         <blue>198</blue>
+        </color>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>原标题</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>地区</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>发布日期</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>招采平台</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>采购方式</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>详情信息</string>
        </property>
       </column>
      </widget>

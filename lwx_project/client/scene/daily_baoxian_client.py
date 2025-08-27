@@ -238,6 +238,9 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
     # 核心的入口函数
     def search_baoxian(self):
         # 第一个网站搜索保险
+        check_yes = self.modal(level="check_yes", msg=f"继续将关闭所有{self.browser_selector.currentText()}浏览器，请确保所有浏览器上的工作已保存")
+        if not check_yes:
+            return
         params = {
             "stage": "search_baoxian",
             "start_date": self.baoxian_start_date_wrapper.get().date_str,
@@ -287,8 +290,12 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         )
 
     def custom_after_one_retry_baoxian_done(self, res):
+        """每一条baoxian item 收集完成后的回调：记录到table容器中
+        获取状态、是否选择、详情链接、项目名称、采购单位名称、预算/限价（万元）、获取招标文件的截止日期、原标题、地区、发布日期、招采平台、采购方式、详情信息
+        """
         item = res.get("baoxian_item")
         index = res.get("index")
+        # todo
         self.collected_baoxian_table_wrapper.set_row(index, [
             item.province,
             item.bid_type,
