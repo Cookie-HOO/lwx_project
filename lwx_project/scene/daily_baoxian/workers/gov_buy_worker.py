@@ -19,6 +19,7 @@ from lwx_project.scene.daily_baoxian.vo import BaoxianItem, Worker
 
 BID_TYPE_MAPPING = {
     "1": "公开招标",
+    "3": "竞争性谈判",
     "10": "竞争性磋商",
 }
 
@@ -82,7 +83,7 @@ class GovBuyWorker(Worker):
         """根据起止日期搜索符合条件的保险条目"""
         self.start_date = start_date
         self.end_date = end_date
-        bid_types = ["1", "10"]
+        bid_types = BID_TYPE_MAPPING.keys()  # 可以保证有序
         for index, bid_type in enumerate(bid_types):  # 公开招标, 竞争性磋商
             baoxian_items = self._search(page, start_date=start_date, end_date=end_date, bid_type=bid_type)
             self.baoxian_items.extend(baoxian_items)

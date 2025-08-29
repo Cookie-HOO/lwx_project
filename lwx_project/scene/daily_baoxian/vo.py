@@ -165,23 +165,31 @@ class BaoxianItem:
         # text = self.detail.replace("\n", "").replace("年年", "年").replace("月月", "月").replace("日日", "日")
         text = self.detail.replace("到", "至")
         patterns1 = [
-            "获\s*取\s*"
+            "获\s*取",
         ]
         patterns2 = [
-            r"招\s*标\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
-            r"采\s*购\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
-            r"竞\s*争\s*性\s*磋\s*商\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
-            r"磋\s*商\s*文\s*件\s*.{1,30}?至(.*?)[日,，]",
-            r"文\s*件\s*期\s*限\s*.{1,30}?至(.*?)[日,，]",
-            r"{1,8}文\s*件\s*.{1,30}?至(.*?)[日,，]",
+            r"招\s*标\s*文\s*件",
+            r"采\s*购\s*文\s*件",
+            r"竞\s*争\s*性\s*磋\s*商\s*文\s*件",
+            r"磋\s*商\s*文\s*件",
+            r"文\s*件\s*期\s*限",
+            r".{1,8}文\s*件",
         ]
         patterns3 = [
-
+            ".{1,30}?至(.*?)[日,，]",
         ]
-        for pattern in patterns:
-            get_bid_until = self.get_bid_until_with_re(pattern, text)
-            if get_bid_until:
-                return get_bid_until
+        for pattern1 in patterns1:
+            for pattern2 in patterns2:
+                for pattern3 in patterns3:
+                    pattern_makeup1 = "\s*".join([pattern1, pattern2, pattern3])
+                    get_bid_until = self.get_bid_until_with_re(pattern_makeup1, text)
+                    if get_bid_until:
+                        return get_bid_until
+
+                    pattern_makeup2 = "\s*".join([pattern2, pattern1, pattern3])
+                    get_bid_until = self.get_bid_until_with_re(pattern_makeup2, text)
+                    if get_bid_until:
+                        return get_bid_until
 
         # 特殊的写法：时间：自招标文件公告发布之日起5个工作日 ｜ 时间：自磋商文件公告发布之日起5个工作日 ｜ 时间：自本文件公告发布之日起5个工作日
         patterns1 = [
@@ -337,9 +345,15 @@ class WorkerManager:
     def init_browser(self, browser_bin_path):
         self.p_ins = sync_playwright()
         self.p = self.p_ins.__enter__()
-        self.browser_context, self.page = init_local_browser(
+        result =  init_local_browser(
             self.p, browser_bin_path, headless=False
         )
+        while result is None:
+            time.sleep(1)
+            result = init_local_browser(
+                self.p, browser_bin_path, headless=False
+            )
+        self.browser_context, self.page = result
         return self
 
     def close_browser(self):
