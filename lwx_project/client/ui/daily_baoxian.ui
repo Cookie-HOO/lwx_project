@@ -164,9 +164,16 @@
        </spacer>
       </item>
       <item>
-       <widget class="QPushButton" name="download_file_button">
+       <widget class="QPushButton" name="save_file_button">
         <property name="text">
-         <string>📄下载结果</string>
+         <string>💾保存</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="send_file_button">
+        <property name="text">
+         <string>📤发送邮件</string>
         </property>
        </widget>
       </item>

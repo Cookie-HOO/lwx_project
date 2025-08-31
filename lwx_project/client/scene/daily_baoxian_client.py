@@ -15,10 +15,14 @@ from lwx_project.client.utils.date_widget import DateEditWidgetWrapper
 from lwx_project.client.utils.list_widget import ListWidgetWrapper
 from lwx_project.client.utils.table_widget import TableWidgetWrapper
 from lwx_project.const import PROJECT_PATH
+from lwx_project.scene.daily_baoxian import merge_result
+from lwx_project.scene.daily_baoxian.const import OLD_RESULT_PATH
 from lwx_project.scene.daily_baoxian.vo import worker_manager, WorkerManager, BaoxianItem
 from lwx_project.scene.daily_baoxian.workers.bid_info_worker import BidInfoWorker
 from lwx_project.scene.daily_baoxian.workers.gov_buy_worker import GovBuyBaoxianItem, GovBuyWorker, gov_buy_worker
 from lwx_project.utils.browser import close_all_browser_instances, get_default_browser_bin_path
+from lwx_project.utils.file import copy_file
+from lwx_project.utils.mail import send_mail
 
 from lwx_project.utils.time_obj import TimeObj
 
@@ -224,11 +228,12 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
 
         # 下载按钮
         self.df_result = None
-        self.download_file_button.clicked.connect(
-            self.download_file
-        )
+        self.save_file_button.clicked.connect(self.save_file)
+        self.send_file_button.clicked.connect(self.send_file)
 
         self.collected_baoxian_items = []
+
+        self.has_saved = None
 
     def register_worker(self):
         return Worker()
@@ -370,10 +375,23 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
     def custom_after_one_retry_baoxian_start(self, row_index):
         self.collected_baoxian_table_wrapper.set_cell(row_index, 11, "...")
 
-    def download_file(self):
+    def save_file(self):
         df = self.collected_baoxian_table_wrapper.get_data_as_df()
-        pass
+        # 处理信息
+        merge_result.merge(df)
+        self.modal(level="tip", count_down=1, title="1秒后关闭", msg="✅保存成功")
+        self.has_saved=True
+        self.save_file_button.setEnabled(False)
+        self.save_file_button.setToolTip('无法重复保存，请去important目录进行修改')
 
+    def send_file(self):
+        if not self.has_saved:
+            check_yes = self.modal(level="check_yes", msg="还未保存，是否直接发送", default="no")
+            if not check_yes:
+                return
+        # 发送文件
+        merge_result.send()
+        self.modal(level="tip", count_down=1, title="1秒后关闭", msg="✅发送成功")
 
     def reset(self):
         if self.gov_buy_q_worker.isRunning() or self.bid_info_q_worker.isRunning():
@@ -381,5 +399,6 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         self.product_name_match_table_wrapper.clear()
         self.set_status_empty()
         self.status_text = ""
+        self.has_saved=None
         self.modal("info", title="Success", msg="重置成功")
 
