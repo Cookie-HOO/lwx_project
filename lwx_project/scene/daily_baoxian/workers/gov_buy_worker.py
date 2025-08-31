@@ -58,19 +58,6 @@ tags_text:
                         GovBuyBaoxianItem.get_province_abbr_first(self._buyer_name) or \
                         GovBuyBaoxianItem.get_province_abbr_first(self.title)
 
-    def parse_from_detail(self):
-        # 采购人信息
-        self.buyer_name = self._buyer_name or self.get_default_buyer_name()
-
-        # 预算
-        self.budget = self.get_default_budget()
-
-        # 精简的标题
-        self.simple_title = self.get_default_simple_title(self.buyer_name)
-
-        # 截止日期
-        self.get_bid_until = self.get_default_get_bid_until()
-        return self
 
 
 class GovBuyWorker(Worker):

@@ -34,6 +34,8 @@ class BaoxianItem:
 
         self.success = True
 
+        self._buyer_name = ""
+
     @staticmethod
     def get_province_abbr_first(content):
         for p in PROVINCES_ABBR + PROVINCES:  # 先找简称
@@ -42,7 +44,18 @@ class BaoxianItem:
         return ""
 
     def parse_from_detail(self):
-        pass
+        # 采购人信息
+        self.buyer_name = self._buyer_name or self.get_default_buyer_name()
+
+        # 预算
+        self.budget = self.get_default_budget()
+
+        # 精简的标题
+        self.simple_title = self.get_default_simple_title(self.buyer_name) or self.title
+
+        # 截止日期
+        self.get_bid_until = self.get_default_get_bid_until()
+        return self
 
     def set_detail(self, detail):
         self.detail = detail

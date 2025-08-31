@@ -59,3 +59,6 @@ DATA_PATH = os.path.join(ALL_DATA_PATH, "daily_baoxian")
 # REGRESSION_PATH = os.path.join(DATA_PATH, "近期团险招标信息一览表.csv")
 REGRESSION_PATH = os.path.join(DATA_PATH, "清洗结果.csv")
 # REGRESSION_PATH1 = os.path.join(DATA_PATH, "结果1.csv")
+
+IMPORTANT_PATH = os.path.join(DATA_PATH, "important")
+OLD_RESULT_PATH = os.path.join(IMPORTANT_PATH, "近期团险招标信息一览表.xlsx")

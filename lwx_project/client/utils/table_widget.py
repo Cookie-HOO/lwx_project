@@ -73,6 +73,10 @@ class TableWidgetWrapper:
         for index in sorted(selected_rows, reverse=True):
             self.table_widget.removeRow(index.row())
 
+    def set_col_width(self, col_index: int, width: int):
+        self.table_widget.setColumnWidth(col_index, width)
+        return self
+
     def get_cell_value(self, row: int, column: int) -> typing.Optional[str]:
         # 尝试获取QTableWidgetItem（普通文本）
         item = self.table_widget.item(row, column)
@@ -83,6 +87,8 @@ class TableWidgetWrapper:
         widget = self.table_widget.cellWidget(row, column)
         if isinstance(widget, QComboBox):
             return widget.currentText()
+        elif isinstance(widget, QCheckBox):
+            return str(bool(widget.isChecked()))
 
         # 如果既不是QTableWidgetItem也不是QComboBox，返回None
         return None

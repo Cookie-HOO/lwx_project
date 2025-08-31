@@ -210,6 +210,7 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         # 搜索保险的按钮和容器
         self.search_button.clicked.connect(self.search_baoxian)
         self.collected_baoxian_table_wrapper = TableWidgetWrapper(self.collected_baoxian_table)
+        self.collected_baoxian_table_wrapper.set_col_width(0, 60).set_col_width(1, 60).set_col_width(3, 260).set_col_width(7, 260)
 
         # 记录worker
         self.worker_manager: typing.Optional[WorkerManager] = None
@@ -224,7 +225,8 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         # 下载按钮
         self.df_result = None
         self.download_file_button.clicked.connect(
-            lambda: self.download_zip_or_file_from_path(path_or_df=self.df_result, default_topic="每日保险结果"))
+            self.download_file
+        )
 
         self.collected_baoxian_items = []
 
@@ -272,22 +274,76 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
     def custom_after_one_baoxian_done(self, res):
         item = res.get("baoxian_item")
 
-        self.collected_baoxian_table_wrapper.add_row_with_color([
-            item.province,
-            item.bid_type,
-            item.simple_title,
-            item.buyer_name,
-            item.budget,
-            item.get_bid_until,
-            item.platform + ":\n" + item.url,
-            item.publish_date,
-            item.title,
-            item.url,
-            item.detail,
-            "✅" if item.success else "❌",
-        ],
-            # cell_widget_func=new_button
-        )
+        # 【提示信息】：获取状态、是否选择
+        # 【关键信息】：详情链接（复制）、项目名称、采购单位名称、预算/限价（万元）、获取招标文件的截止日期
+        # 【参考信息】：原标题、地区、发布日期、招采平台、采购方式、详情信息、链接
+        self.collected_baoxian_table_wrapper.add_rich_widget_row([
+            {
+                "type": "readonly_text",  # 获取状态
+                "value": "✅" if item.success else "❌",
+            }, {
+                "type": "checkbox",  # 是否选择
+                "value": item.success and bool(item.simple_title or item.publish_date or item.get_bid_until),
+            }, {
+                "type": "button_group",  # 详情链接（点击即可复制）
+                "values": [
+                    {
+                        "value": "复制链接",
+                        "onclick": lambda row_index, col_index, row, url=item.url: self.copy2clipboard(url),
+                    }
+                ],
+            }, {  # 关键信息：项目名称
+                "type": "editable_text",
+                "value": item.simple_title,
+            }, {  # 关键信息：采购单位名称
+                "type": "editable_text",
+                "value": item.buyer_name,
+            }, {  # 关键信息：预算
+                "type": "editable_text",
+                "value": item.budget,
+            }, {  # 关键信息：截止日期
+                "type": "editable_text",
+                "value": item.get_bid_until,
+            }, {  # 参考信息：原标题
+                "type": "readonly_text",
+                "value": item.title,
+            }, {  # 参考信息：地区
+                "type": "readonly_text",
+                "value": item.province,
+            }, {  # 参考信息：发布日期
+                "type": "readonly_text",
+                "value": item.publish_date,
+            }, {  # 参考信息：招采平台
+                "type": "readonly_text",
+                "value": item.platform,
+            }, {  # 参考信息：采购方式
+                "type": "readonly_text",
+                "value": item.bid_type,
+            }, {  # 参考信息：详细内容
+                "type": "readonly_text",
+                "value": item.detail,
+            }, {  # 参考信息：链接
+                "type": "readonly_text",
+                "value": item.url,
+            },
+        ])
+        #
+        # self.collected_baoxian_table_wrapper.add_row_with_color([
+        #     item.province,
+        #     item.bid_type,
+        #     item.simple_title,
+        #     item.buyer_name,
+        #     item.budget,
+        #     item.get_bid_until,
+        #     item.platform + ":\n" + item.url,
+        #     item.publish_date,
+        #     item.title,
+        #     item.url,
+        #     item.detail,
+        #     "✅" if item.success else "❌",
+        # ],
+        #     # cell_widget_func=new_button
+        # )
 
     def custom_after_one_retry_baoxian_done(self, res):
         """每一条baoxian item 收集完成后的回调：记录到table容器中
@@ -295,7 +351,6 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         """
         item = res.get("baoxian_item")
         index = res.get("index")
-        # todo
         self.collected_baoxian_table_wrapper.set_row(index, [
             item.province,
             item.bid_type,
@@ -314,6 +369,11 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
 
     def custom_after_one_retry_baoxian_start(self, row_index):
         self.collected_baoxian_table_wrapper.set_cell(row_index, 11, "...")
+
+    def download_file(self):
+        df = self.collected_baoxian_table_wrapper.get_data_as_df()
+        pass
+
 
     def reset(self):
         if self.gov_buy_q_worker.isRunning() or self.bid_info_q_worker.isRunning():

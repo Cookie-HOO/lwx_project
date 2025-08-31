@@ -318,27 +318,63 @@ class BidInfoBaoxianItem(BaoxianItem):
         """
         text = self.detail.replace("\n", "").replace("年年", "年").replace("月月", "月").replace("日日", "日")
         text = text.replace("到", "至")
-        patterns = [
-            r"文\s*件\s*获\s*取\s*期\s*限\s*[:：]?\s*.*?至(.*?)[日,，]",
-            r"文\s*件\s*的\s*获\s*取\s*[:：]?\s*.*?至(.*?)[日,，]",
-            r"文\s*件\s*获\s*取\s*时\s*间\s*[:：]?\s*.*?至(.*?)[日,，]",
-            r"文\s*件\s*询\s*价\s*时\s*间\s*[:：]?\s*.*?至(.*?)[日,，]",
-            r"询\s*价\s*文\s*件\s*时\s*间\s*[:：]?\s*.*?至(.*?)[日,，]",
-            r"招\s*标\s*文\s*件\s*的\s*获\s*取\s*.*?至(.*?)[日,，]",
-            r"获\s*取\s*采\s*购\s*文\s*件\s*时\s*间\s*.*?至(.*?)[日,，]",
-            r"获\s*取\s*招\s*标\s*文\s*件\s*时\s*间\s*.*?至(.*?)[日,，]",
-            r"获\s*取\s*文\s*件\s*时\s*间\s*.*?至(.*?)[日,，]",
-            r"获\s*取\s*采\s*购\s*文\s*件\s*.*?至(.*?)[日,，]",
-            r"获\s*取\s*招\s*标\s*文\s*件\s*.*?至(.*?)[日,，]",
-            r"获\s*取\s*招\s*标\s*文\s*件\s*.*?至(.*?)[日,，]",
-            r"采\s*购\s*文\s*件\s*的\s*提\s*供\s*期\s*限\s*.*?至(.*?)[日,，]",
-            r"招\s*标\s*文\s*件\s*获\s*取\s*.*?至(.*?)[日,，]",
+
+        patterns1 = [
+            "文\s*件",
+            "文\s*件\s*询\s*价",
+            "询\s*价\s*文\s*件",
+            "招\s*标\s*文\s*件",
+            "采\s*购\s*文\s*件",
         ]
-        for pattern in patterns:
-            get_bid_until = self.get_bid_until_with_re(pattern, text)
-            if get_bid_until:
-                return get_bid_until
+        patterns2 = [
+            "获\s*取"
+        ]
+        patterns3 = [
+            "",
+            "时\*间",
+            "期\s*限"
+            "提\s*供\s*期\s*限"
+        ]
+        patterns4 = [
+            "[:：]?\s*.*?至(.*?)[日,，]"
+        ]
+        for pattern1 in patterns1:  # 文件
+            for pattern2 in patterns2:  # 获取
+                for pattern3 in patterns3:  # 时间
+                    for pattern4 in patterns4:  # re
+                        # 1. 文件的获取时间
+                        pattern_makeup1 = pattern1 + r"\s*的?\s*" + pattern2 + pattern3 + pattern4
+                        # 2. 获取文件的时间
+                        pattern_makeup2 = pattern2 + pattern1 + r"\s*的?\s*" + pattern3 + pattern4
+                        for pattern in [pattern_makeup1, pattern_makeup2]:
+                            get_bid_until = self.get_bid_until_with_re(pattern, text)
+                            if get_bid_until:
+                                return get_bid_until
         return ""
+        # text = self.detail.replace("\n", "").replace("年年", "年").replace("月月", "月").replace("日日", "日")
+        # text = text.replace("到", "至")
+        #
+        # patterns = [
+        #     r"文\s*件\s*获\s*取\s*期\s*限\s*[:：]?\s*.*?至(.*?)[日,，]",
+        #     r"文\s*件\s*的\s*获\s*取\s*[:：]?\s*.*?至(.*?)[日,，]",
+        #     r"文\s*件\s*获\s*取\s*时\s*间\s*[:：]?\s*.*?至(.*?)[日,，]",
+        #     r"文\s*件\s*询\s*价\s*时\s*间\s*[:：]?\s*.*?至(.*?)[日,，]",
+        #     r"询\s*价\s*文\s*件\s*时\s*间\s*[:：]?\s*.*?至(.*?)[日,，]",
+        #     r"招\s*标\s*文\s*件\s*的\s*获\s*取\s*.*?至(.*?)[日,，]",
+        #     r"获\s*取\s*采\s*购\s*文\s*件\s*时\s*间\s*.*?至(.*?)[日,，]",
+        #     r"获\s*取\s*招\s*标\s*文\s*件\s*时\s*间\s*.*?至(.*?)[日,，]",
+        #     r"获\s*取\s*文\s*件\s*时\s*间\s*.*?至(.*?)[日,，]",
+        #     r"获\s*取\s*采\s*购\s*文\s*件\s*.*?至(.*?)[日,，]",
+        #     r"获\s*取\s*招\s*标\s*文\s*件\s*.*?至(.*?)[日,，]",
+        #     r"获\s*取\s*招\s*标\s*文\s*件\s*.*?至(.*?)[日,，]",
+        #     r"采\s*购\s*文\s*件\s*的\s*提\s*供\s*期\s*限\s*.*?至(.*?)[日,，]",
+        #     r"招\s*标\s*文\s*件\s*获\s*取\s*.*?至(.*?)[日,，]",
+        # ]
+        # for pattern in patterns:
+        #     get_bid_until = self.get_bid_until_with_re(pattern, text)
+        #     if get_bid_until:
+        #         return get_bid_until
+        # return ""
 
 
 class BidInfoWorker(Worker):
@@ -351,10 +387,11 @@ class BidInfoWorker(Worker):
         self.baoxian_items: typing.List[BidInfoBaoxianItem] = []
 
     def check_env(self, page):
-        page.goto(self.URL, wait_until="networkidle")
-        if self.is_login(page):
-            return self
-        self.login(page)
+        # 是否登陆都需要验证码了，就先不登陆了
+        # page.goto(self.URL, wait_until="networkidle")
+        # if self.is_login(page):
+        #     return self
+        # self.login(page)
         return self
 
     def go_for_baoxian_items_by_date(self, browser_context, page, start_date, end_date):
@@ -417,7 +454,7 @@ class BidInfoWorker(Worker):
                 detail_url = None
                 final_page = None  # 用于保存成功加载的页面
 
-                for _ in range(2):  # 最多尝试2次点击
+                for _ in range(5):  # 最多尝试2次点击
                     with page.expect_popup() as popup_info:
                         baoxian_pointer.locator("p").click()  # 打开新页面
 
