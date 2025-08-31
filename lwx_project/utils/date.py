@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 
 def add_days_skip_weekends(start_date: str, days: int) -> str:
@@ -23,3 +23,24 @@ def add_days_skip_weekends(start_date: str, days: int) -> str:
 
     # 返回格式化后的字符串
     return current_date.strftime("%Y-%m-%d")
+
+
+def cal_days_diff(end_date, start_date: datetime=None):
+    """
+    end_date: 2025/05/06
+    """
+    start_date = start_date or datetime(1899, 12, 30)
+    days_diff = end_date - start_date
+    return days_diff
+
+
+def add_days(days, start_date: datetime=None) -> date:
+    """
+    start_date: 2025/03/06
+    daus: 1
+    """
+    # Excel日期序列号转换（1900-01-01为1）
+    start_date = start_date or datetime(1899, 12, 30)
+    deadline = start_date + timedelta(days=days)
+    deadline = deadline.date()
+    return deadline

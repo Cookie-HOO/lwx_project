@@ -24,11 +24,11 @@ import re
 import pandas as pd
 import openpyxl
 from openpyxl.styles import PatternFill, Alignment, Border, Side, Font
-from openpyxl.utils.dataframe import dataframe_to_rows
 import datetime
 import os
 
 from lwx_project.scene.daily_baoxian.const import OLD_RESULT_PATH
+from lwx_project.utils.date import cal_days_diff
 from lwx_project.utils.mail import send_mail
 
 
@@ -37,12 +37,15 @@ def merge(new_df):
     # 1. 过滤新数据
     new_df = new_df[new_df["是否选择"] == "True"].copy()
     new_df["招采平台"] = new_df.apply(
-        lambda row: f"{row['招采平台']}\n{row['链接']}"
+        lambda row: f"{row['招采平台']}：\n{row['链接']}"
         if pd.notna(row['招采平台']) and pd.notna(row['链接'])
         else row['招采平台'] if pd.notna(row['招采平台'])
         else row['链接'] if pd.notna(row['链接'])
         else None,
         axis=1  # 必须加 axis=1 才是按行处理
+    )
+    new_df["获取招标文件的截止日期"] = new_df["获取招标文件的截止日期"].apply(
+        lambda x: cal_days_diff(end_date=datetime.datetime.strptime(x, "%Y/%m/%d")) if (pd.notna(x) and str(x)) else None
     )
     # 检查文件是否存在
     if not os.path.exists(old_excel_path):
@@ -185,8 +188,16 @@ def merge(new_df):
             for col_idx, value in enumerate(row_data, 2):
                 cell = ws.cell(row=header_row_index + idx, column=col_idx)
                 cell.value = value
-                cell.alignment = center_align
                 cell.font = simsun_font
+                if col_idx == 7:  # 获取招标文件的截止日期列
+                    cell.number_format = 'm"月"d"日"'
+
+                # 招采平台列设置自动换行(第8列，col_idx=8)，其他列居中
+                if col_idx == 8:
+                    cell.alignment = wrap_align
+                else:
+                    cell.alignment = center_align
+
                 # 仅对有值的单元格应用边框
                 if value is not None and str(value).strip() != '':
                     cell.border = border
@@ -198,12 +209,6 @@ def merge(new_df):
                 # 仅对有值的单元格应用边框
                 if value is not None and str(value).strip() != '':
                     cell.border = border
-                # 招采平台列设置自动换行(第8列，col_idx=8)
-                if col_idx == 8:
-                    cell.alignment = wrap_align
-                else:
-                    cell.alignment = center_align
-        
         # 清除新加入行之后所有行的边框
         last_written_row = header_row_index + len(combined_data)
         for row in ws.iter_rows(min_row=last_written_row + 1):
@@ -211,8 +216,8 @@ def merge(new_df):
                 cell.border = Border()  # 移除边框
         
         # 8. 更新日期（在第二行第一格）
-        today_str = today.strftime('%Y-%m-%d')
-        ws.cell(row=2, column=1).value = f"更新日期：{today_str}"
+        # today_str = today.strftime('%Y-%m-%d')
+        # ws.cell(row=2, column=1).value = f"更新日期：{today_str}"
             
         # 9. 保存文件
         wb.save(old_excel_path)
