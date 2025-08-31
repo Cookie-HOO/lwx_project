@@ -18,7 +18,7 @@ def send_mail(from_email, to_email, subject, body, attachments):
     """
     发送邮件，从 AUTH 中获取发件人鉴权信息
     :param from_email: 发件人邮箱
-    :param to_email: 收件人邮箱
+    :param to_email: 收件人邮箱，支持多人，逗号分隔的字符串或list
     :param subject: 邮件主题
     :param body: 邮件正文
     :param attachments: 附件列表
@@ -33,7 +33,14 @@ def send_mail(from_email, to_email, subject, body, attachments):
     # 创建邮件对象
     msg = MIMEMultipart()
     msg['From'] = from_email
-    msg['To'] = to_email
+    # 处理收件人
+    if isinstance(to_email, list):
+        recipients = to_email
+    else:
+        recipients = to_email.split(',') if ',' in to_email else [to_email]
+    # 确保所有收件人都被正确格式化（去除空格）
+    recipients = [recipient.strip() for recipient in recipients]
+    msg['To'] = ', '.join(recipients)
     msg['Subject'] = Header(subject, 'utf-8')
     
     # 添加正文
