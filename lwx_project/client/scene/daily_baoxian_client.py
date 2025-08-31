@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import sys
 import time
@@ -16,7 +17,7 @@ from lwx_project.client.utils.list_widget import ListWidgetWrapper
 from lwx_project.client.utils.table_widget import TableWidgetWrapper
 from lwx_project.const import PROJECT_PATH
 from lwx_project.scene.daily_baoxian import merge_result
-from lwx_project.scene.daily_baoxian.const import OLD_RESULT_PATH
+from lwx_project.scene.daily_baoxian.const import OLD_RESULT_PATH, CONFIG_PATH
 from lwx_project.scene.daily_baoxian.vo import worker_manager, WorkerManager, BaoxianItem
 from lwx_project.scene.daily_baoxian.workers.bid_info_worker import BidInfoWorker
 from lwx_project.scene.daily_baoxian.workers.gov_buy_worker import GovBuyBaoxianItem, GovBuyWorker, gov_buy_worker
@@ -232,7 +233,14 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         self.send_file_button.clicked.connect(self.send_file)
 
         self.collected_baoxian_items = []
-
+        try:
+            with open(CONFIG_PATH) as f:
+                self.config = json.loads(f.read())
+        except Exception:
+            self.config = {"browser_bin_path": get_default_browser_bin_path("Chrome"), "browser_type": "Chrome"}
+            with open(CONFIG_PATH, "w") as f:
+                f.write(json.dumps(self.config))
+        self.init_browser()  # 初始化上次的执行路径和类型
         self.has_saved = None
 
     def register_worker(self):
@@ -242,12 +250,36 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         browser_type = self.browser_selector.currentText()
         self.browser_bin_path_text.setText(get_default_browser_bin_path(browser_type))
 
+    def init_browser(self):
+        """
+        从配置文件中初始化上次执行的 browser_type 和 browser_path
+        """
+
+        """
+        {
+          "browser_bin_path": "",
+          "browser_type": "chrome"
+        }
+        """
+        browser_type = self.config.get("browser_type") or self.browser_selector.currentText()
+        browser_bin_path = self.config.get("browser_bin_path") or get_default_browser_bin_path(browser_type)
+
+        index = self.browser_selector.findText(browser_type)
+        if index >= 0:
+            self.browser_selector.setCurrentIndex(index)
+        self.browser_bin_path_text.setText(browser_bin_path)
+
     # 核心的入口函数
     def search_baoxian(self):
         # 第一个网站搜索保险
         check_yes = self.modal(level="check_yes", msg=f"继续将关闭所有{self.browser_selector.currentText()}浏览器，请确保所有浏览器上的工作已保存")
         if not check_yes:
             return
+        # 保存配置
+        self.config["browser_bin_path"] = self.browser_bin_path_text.text()
+        self.config["browser_type"] = self.browser_selector.currentText()
+        with open(CONFIG_PATH, "w") as f:
+            f.write(json.dumps(self.config))
         params = {
             "stage": "search_baoxian",
             "start_date": self.baoxian_start_date_wrapper.get().date_str,
