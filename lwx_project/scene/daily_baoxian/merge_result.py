@@ -228,8 +228,8 @@ def merge(new_df):
 
 
 def send():
-    from_email = "fy335432620@126.com"
-    to_email = "fy335432620@126.com"
+    from_email = "liwenxuan_0112@126.com"
+    to_email = "liwenxuanrs@abchina.com"
     subject = "每日招标收集"
     attachments = [OLD_RESULT_PATH]
     send_mail(

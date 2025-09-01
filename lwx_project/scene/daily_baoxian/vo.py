@@ -351,6 +351,7 @@ class WorkerManager:
         self.p = None
         self.browser_context = None
         self.page = None
+        self.running = None
 
     def add_worker(self, worker: Worker):
         self.workers.append(worker)
@@ -388,11 +389,13 @@ class WorkerManager:
             self, start_date, end_date,
             call_back_after_one_done: typing.Callable[[BaoxianItem], None]
     ):
+        self.running = True
         for worker in self.workers:
             worker \
                 .go_for_baoxian_items_by_date(browser_context=self.browser_context, page=self.page, start_date=start_date, end_date=end_date) \
                 .go_for_baoxian_details(browser_context=self.browser_context, page=self.page, call_back_after_one_done=call_back_after_one_done)
 
+        self.running = False
         return self
 
     def retry_baoxian_items(

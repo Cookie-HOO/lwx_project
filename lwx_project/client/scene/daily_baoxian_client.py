@@ -138,51 +138,47 @@ class Worker(BaseWorker):
 
 
 class MyDailyBaoxianClient(WindowWithMainWorker):
-    """
+
+    help_info_text = """
 =========== 场景描述 ===========
-找到特定文件中的 产品名称，在系统中的名称
+收集指定网站的指定条件的招标信息，并融合之前收集到的信息，并支持发送邮件
+1. 搜索招标信息
+2. 可以手动修改关键信息
+3. 点击保存会融合所有信息
+4. 可选一件发送邮件
 
 =========== Important文件 ===========
-❗📗对应表.xlsx
-    要求：
-        1. 列含有[实际简称]、[产品目录统计]
-        2. [实际简称] 列 不能有重复
-❗🔧产品匹配可删词.txt
-    要求：
-        1. 一行一个词语（换行符分割）
-    使用方式：按顺序遍历这里的词语，挨个删除看最后是否匹配到公司
+❗📗近期团险招标信息一览表.xlsx
+    之前收集的招标信息，用于融合
+    每次搜索后会融合之前的信息
 
-=========== 上传文件 ===========
-❗需匹配的产品.xlsx
-    要求：
-        1. 列含有[产品名称]、[公司名称]
-❗其他所有xlsx
-    要求：
-        1. 前两行是描述，第三行是列名
-        2. 列含有[险种名称]
-        3. 第二行的第一列的格式如下
-            日期：xxxx年.....
-注意，这里校验的过程可能耗时较长
+❗auth.json
+    存储鉴权信息，主要是邮箱的登陆信息
+    格式：{"xx@xx.com": "授权码"}
+
+❗🔧config.json
+    使用方式：使用过程中的配置文件，自动记录，无需手动管理
 
 =========== 执行逻辑 ===========
-1. 公司名称 <==> important中的对应表的实际简称
-    目的：得到2个字的简称
-2. 匹配名称
-    - 严格匹配（去掉括号）
-    - in匹配
-    - 简称匹配
-    - 去掉不重要词后匹配
+1. 在「中国政府采购网」搜索，支持：公开招标,竞争性谈判,竞争性磋商
+2. 在「中国招标投标公共服务平台」搜索，支持「公开招标」
+3. 重点收集：截止日期/金额/采购方
 
-=========== 下载文件 ===========
-1. 产品名称匹配.csv，列说明如下
-    [产品名称]：要匹配的内容
-    [公司名称]：
-    [产品目录统计]：2字简称
-    [实际简称]：4字简称
-    [系统名称]：匹配到的内容（去重）
-    [年份]：找到的年份
-    [个数]：匹配到的内容（去重） 的个数
+=========== 注意事项 ===========
+1. 先检查日期，再点击搜索，默认是昨天
+2. 如果出现验证码，就进行验证，验证后会自动继续收集
+3. 收集完成后，需要修改则修改，一定要点击保存，发送邮件时会进行提示
+4. 只能点击一次保存，如果还需要修改，去important目录进行修改
     """
+
+    release_info_text = """
+v1.1.0: 实现基础版本的搜索
+- 搜索
+- 修改、保存、融合
+- 发送邮件
+    """
+
+    step1_help_info_text = """设置日期后，进行搜索，需要指定浏览器路径（会强制关闭所有打开的浏览器）"""
 
     def __init__(self):
         """
@@ -206,7 +202,21 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         uic.loadUi(UI_PATH.format(file="daily_baoxian.ui"), self)  # 加载.ui文件
         self.setWindowTitle("每日保险整理——By LWX")
         self.tip_loading = self.modal(level="loading", titile="加载中...", msg=None)
-        self.browser_path_reset()  # 设置默认路径
+        # 初始化帮助信息
+        self.help_info_button.clicked.connect(lambda: self.modal(level="info", msg=self.help_info_text, width=800, height=400))
+        self.release_info_button.clicked.connect(lambda: self.modal(level="info", msg=self.release_info_text))
+        self.step1_help_info_button.clicked.connect(lambda: self.modal(level="info", msg=self.step1_help_info_text))
+        # self.demo_button.hide()  # todo 演示功能先隐藏
+
+        # 设置默认路径
+        try:
+            with open(CONFIG_PATH) as f:
+                self.config = json.loads(f.read())
+        except Exception:
+            self.config = {"browser_bin_path": get_default_browser_bin_path("Chrome"), "browser_type": "Chrome"}
+            with open(CONFIG_PATH, "w") as f:
+                f.write(json.dumps(self.config))
+        self.init_browser()  # 初始化上次的执行路径和类型
 
         # 搜索保险的起止日期
         self.baoxian_start_date_wrapper = DateEditWidgetWrapper(self.baoxian_start_date, init_date=TimeObj() - 1)
@@ -233,14 +243,6 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         self.send_file_button.clicked.connect(self.send_file)
 
         self.collected_baoxian_items = []
-        try:
-            with open(CONFIG_PATH) as f:
-                self.config = json.loads(f.read())
-        except Exception:
-            self.config = {"browser_bin_path": get_default_browser_bin_path("Chrome"), "browser_type": "Chrome"}
-            with open(CONFIG_PATH, "w") as f:
-                f.write(json.dumps(self.config))
-        self.init_browser()  # 初始化上次的执行路径和类型
         self.has_saved = None
 
     def register_worker(self):
@@ -426,11 +428,10 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
         self.modal(level="tip", count_down=1, title="1秒后关闭", msg="✅发送成功")
 
     def reset(self):
-        if self.gov_buy_q_worker.isRunning() or self.bid_info_q_worker.isRunning():
+        if self.worker_manager and self.worker_manager.running:
             return self.modal(level="warn", msg="运行中，无法重置，请等待执行完成")
-        self.product_name_match_table_wrapper.clear()
+        self.collected_baoxian_table_wrapper.clear_content()
         self.set_status_empty()
         self.status_text = ""
         self.has_saved=None
         self.modal("info", title="Success", msg="重置成功")
-

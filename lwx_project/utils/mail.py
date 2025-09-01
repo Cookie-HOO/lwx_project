@@ -1,3 +1,4 @@
+import json
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -7,12 +8,8 @@ from email.header import Header
 import os
 import mimetypes
 
-from lwx_project.scene.daily_baoxian.const import OLD_RESULT_PATH
+from lwx_project.scene.daily_baoxian.const import OLD_RESULT_PATH, AUTH_PATH
 
-# 存储所有可供鉴权的信息
-AUTH = {
-    "fy335432620@126.com": "RJerihJ3gbqLKayw",
-}
 
 def send_mail(from_email, to_email, subject, body, attachments):
     """
@@ -24,6 +21,10 @@ def send_mail(from_email, to_email, subject, body, attachments):
     :param attachments: 附件列表
     :return:
     """
+    # 读取所有可供鉴权的信息 important/auth.json
+    with open(AUTH_PATH) as f:
+        AUTH = json.loads(f.read())
+
     # 获取发件人鉴权信息
     if from_email not in AUTH:
         print(f"未配置发件人邮箱 {from_email} 的鉴权信息")
