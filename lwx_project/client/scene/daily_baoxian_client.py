@@ -314,8 +314,8 @@ v1.1.0: 实现基础版本的搜索
         item = res.get("baoxian_item")
 
         # 【提示信息】：获取状态、是否选择
-        # 【关键信息】：详情链接（复制）、项目名称、采购单位名称、预算/限价（万元）、获取招标文件的截止日期
-        # 【参考信息】：原标题、地区、发布日期、招采平台、采购方式、详情信息、链接
+        # 【关键信息】：详情链接（复制）、项目名称、采购单位名称、预算/限价（万元）、获取招标文件的截止日期、地区
+        # 【参考信息】：原标题、发布日期、招采平台、采购方式、详情信息、链接
         self.collected_baoxian_table_wrapper.add_rich_widget_row([
             {
                 "type": "readonly_text",  # 获取状态
@@ -343,12 +343,12 @@ v1.1.0: 实现基础版本的搜索
             }, {  # 关键信息：截止日期
                 "type": "editable_text",
                 "value": item.get_bid_until,
+            }, {  # 参考信息：地区
+                "type": "editable_text",
+                "value": item.province,
             }, {  # 参考信息：原标题
                 "type": "readonly_text",
                 "value": item.title,
-            }, {  # 参考信息：地区
-                "type": "readonly_text",
-                "value": item.province,
             }, {  # 参考信息：发布日期
                 "type": "readonly_text",
                 "value": item.publish_date,

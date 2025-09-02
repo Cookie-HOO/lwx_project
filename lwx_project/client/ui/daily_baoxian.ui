@@ -271,12 +271,19 @@
       </column>
       <column>
        <property name="text">
-        <string>原标题</string>
+        <string>地区</string>
+       </property>
+       <property name="background">
+        <color>
+         <red>207</red>
+         <green>240</green>
+         <blue>198</blue>
+        </color>
        </property>
       </column>
       <column>
        <property name="text">
-        <string>地区</string>
+        <string>原标题</string>
        </property>
       </column>
       <column>
