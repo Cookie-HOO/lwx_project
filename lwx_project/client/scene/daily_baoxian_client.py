@@ -225,7 +225,7 @@ v1.1.0: 实现基础版本的搜索
         # 搜索保险的按钮和容器
         self.search_button.clicked.connect(self.search_baoxian)
         self.collected_baoxian_table_wrapper = TableWidgetWrapper(self.collected_baoxian_table)
-        self.collected_baoxian_table_wrapper.set_col_width(0, 60).set_col_width(1, 60).set_col_width(3, 260).set_col_width(7, 260)
+        self.collected_baoxian_table_wrapper.set_col_width(0, 60).set_col_width(1, 60).set_col_width(3, 260).set_col_width(8, 260)
 
         # 记录worker
         self.worker_manager: typing.Optional[WorkerManager] = None
