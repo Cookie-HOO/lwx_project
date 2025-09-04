@@ -89,8 +89,8 @@ class Worker(BaseWorker):
             from lwx_project.scene.daily_baoxian.workers.gov_buy_worker import gov_buy_worker
             from lwx_project.scene.daily_baoxian.workers.bid_info_worker import bid_info_worker
 
-            worker_manager.add_worker(bid_info_worker)
             worker_manager.add_worker(gov_buy_worker)
+            worker_manager.add_worker(bid_info_worker)
 
             # worker_manager 统一管理所有浏览器实例
 
@@ -176,6 +176,8 @@ v1.1.0: 实现基础版本的搜索
 - 搜索
 - 修改、保存、融合
 - 发送邮件
+
+v1.1.1: 调整顺序，先查找政府网
     """
 
     step1_help_info_text = """设置日期后，进行搜索，需要指定浏览器路径（会强制关闭所有打开的浏览器）"""
