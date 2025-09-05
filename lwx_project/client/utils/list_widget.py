@@ -4,11 +4,14 @@ from PyQt5.QtWidgets import QListWidgetItem, QHBoxLayout, QPushButton, QListWidg
 
 
 class ListWidgetWrapper:
-    def __init__(self, list_widget, add_rows_button=False, del_rows_button=False):
+    def __init__(self, list_widget, add_rows_button=False, del_rows_button=False, double_clicked=None):
         self.list_widget = list_widget
         new_list = self.__add_buttons(add_rows_button, del_rows_button)
         if new_list is not None:
             self.list_widget = new_list
+
+        if double_clicked:
+            self.list_widget.itemDoubleClicked.connect(double_clicked)
 
     def __add_buttons(self, add_rows_button, del_rows_button):
         if not add_rows_button and not del_rows_button:
@@ -82,6 +85,15 @@ class ListWidgetWrapper:
 
     def get_data_as_str(self, join="\n") -> str:
         return join.join([self.list_widget.item(i).text() for i in range(self.list_widget.count())])
+
+    def get_text_by_index(self, index):
+        item = self.list_widget.item(index)
+        original_text = item.text()
+        return original_text
+
+    def set_text_by_index(self, index, text):
+        item = self.list_widget.item(index)
+        item.setText(text)
 
 
 # todo: 优化这里的方法

@@ -1,8 +1,9 @@
 import typing
 
 import pandas as pd
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QBrush, QColor
-from PyQt5.QtWidgets import QTableWidgetItem, QWidget, QComboBox, QPushButton, QHBoxLayout, QTableWidget
+from PyQt5.QtWidgets import QTableWidgetItem, QWidget, QComboBox, QPushButton, QHBoxLayout, QTableWidget, QCheckBox
 
 """
 pyqt5的table组件，的set和get 
@@ -72,6 +73,10 @@ class TableWidgetWrapper:
         for index in sorted(selected_rows, reverse=True):
             self.table_widget.removeRow(index.row())
 
+    def set_col_width(self, col_index: int, width: int):
+        self.table_widget.setColumnWidth(col_index, width)
+        return self
+
     def get_cell_value(self, row: int, column: int) -> typing.Optional[str]:
         # 尝试获取QTableWidgetItem（普通文本）
         item = self.table_widget.item(row, column)
@@ -82,9 +87,24 @@ class TableWidgetWrapper:
         widget = self.table_widget.cellWidget(row, column)
         if isinstance(widget, QComboBox):
             return widget.currentText()
+        elif isinstance(widget, QCheckBox):
+            return str(bool(widget.isChecked()))
 
         # 如果既不是QTableWidgetItem也不是QComboBox，返回None
         return None
+    def get_columns(self):
+        labels = []
+        for column in range(self.table_widget.columnCount()):
+            item = self.table_widget.horizontalHeaderItem(column)
+            if item is not None:
+                labels.append(item.text())
+        return labels
+
+    def get_values_by_row_index(self, row_index) -> dict:
+        values = {}
+        for col_index, column_name in enumerate(self.get_columns()):
+            values[column_name] = self.get_cell_value(row_index, col_index)
+        return values
 
     def fill_data_with_color(
             self,
@@ -116,6 +136,115 @@ class TableWidgetWrapper:
                 elif isinstance(item, QComboBox):
                     self.table_widget.setCellWidget(i, j, item)
 
+    def add_row_with_color(
+            self,
+            value_list: list,
+            cell_style_func: typing.Callable[[list, int], QColor] = None,
+            cell_widget_func: typing.Callable[[list, int], QWidget] = None,
+    ):
+        row_idx = self.table_widget.rowCount()
+        self.table_widget.insertRow(row_idx)
+        self.set_row(row_idx, value_list, cell_style_func, cell_widget_func)
+
+    def add_rich_widget_row(self, row):
+        """增加复杂的组件行，支持以下类型
+        只读文本: readonly_text:
+        可改文本：editable_text: 支持绑定 onchange 事件 const onchange = (row_num, col_num, row, after_change_text) => {}
+        下拉框：dropdown
+        复选框：checkbox:
+        单选框：radio:
+        全局单选框：global_radio: 纵向全局唯一
+        按钮组：button_group: 支持绑定 onclick事件 const onchange = (row_num, col_num, row) => {}
+
+        rows:
+            [{
+                "type": "readonly_text",
+                "value": "123",
+            }, {
+                "type": "editable_text",
+                "value": "123",
+                "onchange": (row_num, col_num, row, after_change_text) => {}
+            }, {
+                "type": "dropdown",
+                "values": ["1", "2", "3"],
+                “display_values": ["1", "2", "3"]]
+                "cur_index": 0
+            }, {
+                "type": "global_radio",
+                "value": True,
+            }, {
+                "type": "button_group",
+                "values": [{
+                   "value: "测试",
+                   "onclick": (row_num, col_num, row),
+                }],
+            }
+            ]
+        :return:
+        """
+        nex_row_index = self.table_widget.rowCount()
+        self.table_widget.setRowCount(nex_row_index+1)
+        for col_index, cell in enumerate(row):
+            cell_type = cell.get("type")
+            cell_options = cell.get("options", {})
+            if cell_type == "readonly_text":
+                item = QTableWidgetItem(str(cell.get("value")))
+                item.setFlags(Qt.ItemIsEnabled)
+                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+                self.table_widget.setItem(nex_row_index, col_index, item)
+            elif cell_type == "editable_text":
+                item = QTableWidgetItem(str(cell.get("value")))
+                item.setFlags(Qt.ItemIsEditable | Qt.ItemIsEnabled)
+                self.table_widget.setItem(nex_row_index, col_index, item)
+            elif cell_type == "checkbox":
+                check_box = QCheckBox()
+                check_box.setChecked(cell.get("value", False))
+                # check_box.stateChanged.connect(lambda state, nex_row_index=nex_row_index,col_index=col_index: self.__global_radio_action(state, cur_row_index=nex_row_index, cur_col_index=col_index))
+                self.table_widget.setCellWidget(nex_row_index, col_index, check_box)
+            elif cell_type == "button_group":
+                button_layout = QHBoxLayout()
+                for button in cell.get("values"):
+                    value = button.get("value")
+                    onclick = button.get("onclick")
+                    button_widget = QPushButton(value)
+                    # button_widget.setSizePolicy(QSizePolicy.Mininum, QSizePolicy.Fixed)
+                    # button_widget.setMinimumSize(100, 30)
+                    this_row_values = self.get_values_by_row_index(nex_row_index)
+                    button_widget.onclick = onclick
+                    button_widget.clicked.connect(lambda checked, col_index=col_index, onclick=onclick, nex_row_index=nex_row_index, this_row_values=this_row_values: onclick(nex_row_index, col_index, this_row_values))
+                    # button_widget.clicked.connect(lambda checked=None, onclick=onclick: onclick(nex_row_index, col_index, this_row_values))
+                    button_layout.addWidget(button_widget)
+
+                button_container = QWidget()
+                button_container.setLayout(button_layout)
+                self.table_widget.setRowHeight(nex_row_index, 40)
+                self.table_widget.setCellWidget(nex_row_index, col_index, button_container)
+
+
+    def set_row(
+            self, i, value_list,
+            cell_style_func: typing.Callable[[list, int], QColor] = None,
+            cell_widget_func: typing.Callable[[list, int], QWidget] = None,
+        ):
+        for col_idx, value in enumerate(value_list):
+            # 尝试用 widget 显示内容
+            if cell_widget_func is not None:
+                widget = cell_widget_func(value_list, col_idx)
+                if widget is not None:
+                    self.table_widget.setCellWidget(i, col_idx, widget)
+                    continue
+
+            # 默认使用 QTableWidgetItem
+            item = QTableWidgetItem(str(value))
+
+            # 设置样式
+            if cell_style_func is not None:
+                color = cell_style_func(value_list, col_idx)
+                if color:
+                    item.setBackground(QBrush(color))
+
+            self.table_widget.setItem(i, col_idx, item)
+
     def get_data_as_df(self) -> pd.DataFrame:
         headers = []
         for i in range(self.table_widget.columnCount()):
@@ -133,6 +262,9 @@ class TableWidgetWrapper:
             data.append(row_data)
         df = pd.DataFrame(data, columns=headers)
         return df
+
+    def set_cell(self, i, j, text):
+        self.table_widget.setItem(i, j, QTableWidgetItem(text))
 
     def clear(self):
         """全部清空"""

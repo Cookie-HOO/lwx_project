@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="windowModality">
+   <enum>Qt::NonModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1355</width>
+    <height>865</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <property name="documentMode">
+   <bool>true</bool>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_8">
+      <item>
+       <widget class="QPushButton" name="help_info_button">
+        <property name="text">
+         <string>❓场景说明</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_7">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_6">
+        <property name="sizeIncrement">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>每日保险整理</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_8">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="release_info_button">
+        <property name="text">
+         <string>💡场景更新信息</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="reset_button">
+        <property name="text">
+         <string>重置所有</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_5">
+      <item>
+       <widget class="QLabel" name="label_10">
+        <property name="text">
+         <string>🌐选择浏览器：</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="browser_selector">
+        <item>
+         <property name="text">
+          <string>Chrome</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Edge</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="browser_bin_path_text"/>
+      </item>
+      <item>
+       <widget class="QPushButton" name="browser_path_reset_button">
+        <property name="text">
+         <string>🔄重置路径</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QPushButton" name="search_button">
+        <property name="text">
+         <string>🔍</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QDateEdit" name="baoxian_start_date">
+        <property name="calendarPopup">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_9">
+        <property name="text">
+         <string>～</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QDateEdit" name="baoxian_end_date">
+        <property name="calendarPopup">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="save_file_button">
+        <property name="text">
+         <string>💾保存</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="send_file_button">
+        <property name="text">
+         <string>📤发送邮件</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="step1_help_info_button">
+        <property name="text">
+         <string>❓第一步的帮助信息</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QTableWidget" name="collected_baoxian_table">
+      <property name="verticalScrollBarPolicy">
+       <enum>Qt::ScrollBarAsNeeded</enum>
+      </property>
+      <property name="horizontalScrollBarPolicy">
+       <enum>Qt::ScrollBarAsNeeded</enum>
+      </property>
+      <property name="autoScroll">
+       <bool>true</bool>
+      </property>
+      <property name="horizontalScrollMode">
+       <enum>QAbstractItemView::ScrollPerItem</enum>
+      </property>
+      <property name="columnCount">
+       <number>14</number>
+      </property>
+      <attribute name="verticalHeaderVisible">
+       <bool>true</bool>
+      </attribute>
+      <column>
+       <property name="text">
+        <string>获取状态</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>是否选择</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>详情链接</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>项目名称</string>
+       </property>
+       <property name="background">
+        <color>
+         <red>207</red>
+         <green>240</green>
+         <blue>198</blue>
+        </color>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>采购单位名称</string>
+       </property>
+       <property name="background">
+        <color>
+         <red>207</red>
+         <green>240</green>
+         <blue>198</blue>
+        </color>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>预算/限价（万元）</string>
+       </property>
+       <property name="background">
+        <color>
+         <red>207</red>
+         <green>240</green>
+         <blue>198</blue>
+        </color>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>获取招标文件的截止日期</string>
+       </property>
+       <property name="background">
+        <color>
+         <red>207</red>
+         <green>240</green>
+         <blue>198</blue>
+        </color>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>地区</string>
+       </property>
+       <property name="background">
+        <color>
+         <red>207</red>
+         <green>240</green>
+         <blue>198</blue>
+        </color>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>原标题</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>发布日期</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>招采平台</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>采购方式</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>详情信息</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>链接</string>
+       </property>
+      </column>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusBar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
