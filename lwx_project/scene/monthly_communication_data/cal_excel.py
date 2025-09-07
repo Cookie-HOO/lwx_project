@@ -33,36 +33,100 @@ def merge_caled_result(upload_info: UploadInfo, result_list):
     # 2 将结果逐一填充进去
     # 3 返回新的结果
     target_year_dir = os.path.join(IMPORTANT_PATH, str(upload_info.year))
+    
+    # 确保目标目录存在
+    os.makedirs(target_year_dir, exist_ok=True)
+    
+    caled_paths = []
 
-    for month, result_df in zip(upload_info.upload_tuanxian_month_dict.keys, result_list):
+    # 将计算结果填充模板
+    for month, result_df in zip(upload_info.upload_tuanxian_month_dict.keys(), result_list):
         this_path = os.path.join(target_year_dir, str(month)+"月同业交流数据.xlsx")
         # 拷贝模板
         copy_file(TEMPLATE_PATH, this_path)
-        """填充数据，要求如下
-        总体要求：
-        1. 所有填充，都需要保留原来的单元格格式，加粗，字体等
-        2. 所有填充都是数字
-        3. 从第4行开始填充（前三行诗标题）
         
-        result_df的情况
-            result_df = result_df.set_index('分公司')
-            result_df['意外险'] = accident_insurance
-            result_df['健康险'] = health_insurance
-            result_df['寿险'] = life_insurance
-            result_df['医疗基金'] = medical_fund
-            result_df['合计'] = total
-            result_df['年金险'] = annu_fund
+        # 使用openpyxl来操作Excel，保留原有格式
+        from openpyxl import load_workbook
         
-        填充步骤
-        1. 模板第一列是“分公司”，需要和result_df的分公司对应上
-        2. 模板的2、3、4、5、6列分别是：意外险、健康险、寿险、医疗基金，合计
-        3. 模板的15列是年金险，16列也是年金险
-        
-        匹配上分公司之后，就将对应的值填充到模板中 this_path 对应的excel中，注意从第4行开始
-        
-        """
+        try:
+            # 加载工作簿
+            wb = load_workbook(this_path)
+            # 获取第一个工作表
+            ws = wb.active
+            
+            # 创建分公司到行号的映射
+            company_to_row = {}
+            # 从第4行开始查找分公司（模板前3行是标题）
+            for row in range(4, ws.max_row + 1):
+                company_cell = ws.cell(row=row, column=1)
+                company_name = company_cell.value
+                if company_name and isinstance(company_name, str):
+                    company_to_row[company_name] = row
+            
+            # 将result_df中的数据填充到模板中
+            for _, row_data in result_df.iterrows():
+                company_name = row_data['分公司']
+                if company_name in company_to_row:
+                    row_num = company_to_row[company_name]
+                    
+                    # 填充数据，保留原有格式
+                    # 短期：<= 1年
+                    # 意外险 - 第2列
+                    ws.cell(row=row_num, column=2).value = row_data['意外险']
+                    # 健康险 - 第3列
+                    ws.cell(row=row_num, column=3).value = row_data['健康险']
+                    # 寿险 - 第4列
+                    ws.cell(row=row_num, column=4).value = row_data['寿险']
+                    # 医疗基金 - 第5列
+                    ws.cell(row=row_num, column=5).value = row_data['医疗基金']
+                    # 合计 - 第6列
+                    ws.cell(row=row_num, column=6).value = row_data['合计']
+                    # 长期：>1年
+                    # 长期意外	长期健康险	长期寿险 都是0（12、13、14是当月，17、18、19是累计全年
+                    ws.cell(row=row_num, column=12).value = 0
+                    ws.cell(row=row_num, column=13).value = 0
+                    ws.cell(row=row_num, column=14).value = 0
+                    ws.cell(row=row_num, column=17).value = 0
+                    ws.cell(row=row_num, column=18).value = 0
+                    ws.cell(row=row_num, column=19).value = 0
 
-    pass
+                    # 年金险 - 第15列和第16列
+                    ws.cell(row=row_num, column=15).value = row_data['年金险']
+                    ws.cell(row=row_num, column=16).value = row_data['年金险']
+            
+            # 保存工作簿
+            wb.save(this_path)
+            caled_paths.append(this_path)
+            print(f"成功填充 {this_path} 的数据")
+        except Exception as e:
+            print(f"填充 {this_path} 的数据时出错: {str(e)}")
+            continue
+
+    # 将汇总结果填充模板
+    need_cal_min_month = min(upload_info.upload_tuanxian_month_dict.keys())
+    files = sorted(os.listdir(target_year_dir), key=lambda x: int(x.split("月")[0]))
+    for file in files:  # 按顺序了
+        this_path = os.path.join(target_year_dir, file)
+        this_parts = file.split("月")
+        this_month = int(this_parts[0])
+        path_suffix = "月" + this_parts[1]
+        if this_month >= need_cal_min_month:  # 如果有月份进行计算了，那么从这个月份开始，后面的月份都需要重新汇总
+            # 需要将这些 this_path 下后面月份的全年数据重新汇总计算
+            if this_month == 1:  # 说明要从1月重新算
+                # 将1月的，当月数据，直接补充为全年的，只考虑4到26行
+                # 第2、3、4、5、6列，分别对应7、8、9、10、11列
+                # 第12、13、14、15、16列，分别对应17、18、19、20、21列
+                # TODO
+            else:
+                # 其他月份，只需要找到上一个月的汇总值，加到这个月
+                last_file = f"{this_month-1}{path_suffix}"
+                last_month_path = os.path.join(target_year_dir, last_file)
+                # 在 last month path中，找到 7、8、9、10、11 列对应截止当前月的汇总数据
+                #
+
+
+    # 返回最后一个处理的文件路径（或者所有路径的列表）
+    return caled_paths[-1] if caled_paths else None
 
 
 # 核心的分组计算过程
@@ -302,11 +366,20 @@ def detail_group_by(excel_path_list, code_map: dict, after_one_done_callback: ty
 
 # ⛳ 🆕⭐
 if __name__ == '__main__':
-    x = detail_group_by([DETAIL_PATH],{
+    upload_info_ = UploadInfo(
+        year=2025,
+        upload_tuanxian_month_dict = {6: DETAIL_PATH},
+        important_month_dict={},
+        officer_path = None,
+    )
+
+    result_list_ = detail_group_by([DETAIL_PATH],{
             "意外险": [],
             "健康险": [-7824, -7854],  # 后面可能动态变
             "寿险": [],
             "医疗基金": [+7824, +7854],  # 后面可能动态变
             "年金险": [-2801],
         })
-    print(x)
+
+    merge_caled_result(upload_info_, result_list_)
+    print()
