@@ -95,6 +95,9 @@ class ListWidgetWrapper:
         item = self.list_widget.item(index)
         item.setText(text)
 
+    def clear(self):
+        self.list_widget.clear()
+
 
 # todo: 优化这里的方法
 def fill_data(list_widget, items, colors):
