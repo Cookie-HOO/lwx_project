@@ -74,7 +74,8 @@ def check_excels(upload_file_list) -> (bool, str, typing.Optional[UploadInfo]):
     target_year_dir = os.path.join(IMPORTANT_PATH, str(year))
     os.makedirs(target_year_dir, exist_ok=True)
     # 找到所有important当前年中的所有已做完的月
-    important_month_list = [int(file_name.split("月")[0]) for file_name in os.listdir(target_year_dir)]  # "12月同业交流数据.xlsx"
+    candidate_files = [i for i in os.listdir(target_year_dir) if i.endswith(".xlsx")]
+    important_month_list = [int(file_name.split("月")[0]) for file_name in candidate_files]  # "12月同业交流数据.xlsx"
     # 确保 month_list + important_month_list 一定是从1开始的连续数字（可重复）
     all_month_list = month_list + important_month_list
     upload_info = UploadInfo(
@@ -145,7 +146,7 @@ def get_month_from_detail_path(detail_path: str) -> datetime.date:
 
         # 读取前两行
         rows = []
-        for i, row in enumerate(ws.iter_rows(min_row=1, max_row=2)):
+        for i, row in enumerate(ws.iter_rows(min_row=1, max_row=2, max_col=20)):
             rows.append([cell.value for cell in row])
             if i >= 1:  # 只读两行
                 break

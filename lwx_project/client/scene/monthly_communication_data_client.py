@@ -160,6 +160,11 @@ v1.1.2: 完成该场景
 
     def init_important_caled_month(self):
         # todo
+        # 1. 数字/10000，保留2位小数（万）
+        # 2. 展示：刚打开就展示所有计算完的内容，上传后，相应位置改成 月核心团险数据
+        # 3. 增加人员统计的功能
+        # 4. 模板需要改变：添加数字的起始行变了，列也变了（要增加两列）
+        #   /Users/bytedance/Downloads/农银人寿数据交流（2025年5-7）
         pass
 
     def upload_files_action(self):
@@ -187,7 +192,7 @@ v1.1.2: 完成该场景
         # 校验是否通过
         if not is_success:
             self.modal(level="warn", msg=error_msg)
-            # return TODO
+            return
 
         # 设置上传信息
         # 1. 当前年份（上传的文件中共同的年份）
@@ -205,8 +210,6 @@ v1.1.2: 完成该场景
             [f"{i}月核心团险数据" for i in need_cal_month_list]
         )
         self.upload_info = upload_info
-        # todo
-
 
     def cal_baoxian_action(self):
         if self.upload_info is None:
@@ -242,7 +245,6 @@ v1.1.2: 完成该场景
             "医疗基金": get_specific_rule(code_rules, 3),
             "年金险": get_specific_rule(code_rules, 4),
         }
-
 
         # 发起计算任务
         params = {
