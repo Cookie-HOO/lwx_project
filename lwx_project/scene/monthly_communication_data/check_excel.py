@@ -95,9 +95,9 @@ def check_excels(upload_file_list) -> (bool, str, typing.Optional[UploadInfo]):
         missing_month_str = ", ".join(missing_month)
         return False, f"整体月份不连续，缺少{missing_month_str}月团险核心数据", upload_info
 
-    # 2.4 校验如果是新作的内容，必须包含内勤外勤的人员数据
-    if max(month_list) > max(important_month_list) and len(officer_path_list) == 0:
-        return False, "上传新月份时必须提供内外勤人员数据", upload_info
+    # 2.4 校验如果是新作的内容，必须包含内勤外勤的人员数据 TODO
+    # if max(month_list) > max(important_month_list) and len(officer_path_list) == 0:
+    #     return False, "上传新月份时必须提供内外勤人员数据", upload_info
     return True, "", upload_info
 
 @time_cost

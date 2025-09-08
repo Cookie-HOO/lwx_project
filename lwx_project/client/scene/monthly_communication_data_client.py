@@ -1,4 +1,5 @@
 import json
+import os
 
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSignal
@@ -7,9 +8,10 @@ from lwx_project.client.base import BaseWorker, WindowWithMainWorker
 from lwx_project.client.const import UI_PATH
 from lwx_project.client.utils.list_widget import ListWidgetWrapper
 from lwx_project.client.utils.table_widget import TableWidgetWrapper
-from lwx_project.scene.monthly_communication_data.cal_excel import detail_group_by
+from lwx_project.scene.monthly_communication_data.cal_excel import cal_and_merge
 from lwx_project.scene.monthly_communication_data.check_excel import check_excels, UploadInfo
-from lwx_project.scene.monthly_communication_data.const import CONFIG_PATH
+from lwx_project.scene.monthly_communication_data.const import CONFIG_PATH, IMPORTANT_PATH
+from lwx_project.utils.file import copy_file
 
 
 class Worker(BaseWorker):
@@ -41,15 +43,15 @@ class Worker(BaseWorker):
             upload_info: UploadInfo = self.get_param("upload_info")
             code_rules_dict = self.get_param("code_rules_dict")
 
-            caled_path = detail_group_by(
-                excel_path_list = upload_info.upload_tuanxian_month_dict.values,
-                code_map=code_rules_dict,
+            files_map = cal_and_merge(
+                upload_info = upload_info,
+                code_rules_dict=code_rules_dict,
                 after_one_done_callback=lambda index: None,
             )
             self.refresh_signal.emit("✅计算完成")
 
             self.custom_after_all_cal_signal.emit({
-                "caled_path": caled_path
+                "files_map": files_map
             })
 
 
@@ -151,7 +153,7 @@ v1.1.2: 完成该场景
         self.upload_list_wrapper = ListWidgetWrapper(self.upload_list)
 
         self.upload_info = None  # 上传的结果
-        self.caled_path = None # 计算的结果
+        self.result_files_map = None # 计算的结果
 
     def register_worker(self):
         return Worker()
@@ -252,13 +254,29 @@ v1.1.2: 完成该场景
 
         # 增加loading tip
         self.tip_loading.set_titles(["计算.", "计算..", "计算..."]).show()
+    def custom_after_one_cal(self, result):
+        # self.tip_loading.hide()
+        pass
 
-    def custom_custom_after_all_cal(self, result):
+    def custom_after_all_cal(self, result):
         self.tip_loading.hide()
-        self.caled_path = result.get("caled_path")
+        self.result_files_map = result.get("files_map")
+        self.upload_list_wrapper.clear()
+        self.upload_list_wrapper.fill_data_with_color(
+            self.result_files_map.keys()
+        )
+
 
     def download_file_action(self):
-        pass
+        selected = self.upload_list_wrapper.get_selected_text()
+        if selected:
+            file = selected[0]
+        else:
+            file = self.upload_list_wrapper.get_text_by_index(-1)
+        file_path = os.path.join(IMPORTANT_PATH, str(self.upload_info.year), file)
+        target_file_path = self.download_file_modal(file)
+        copy_file(file_path, target_file_path)
+        self.modal(level="info", msg="✅下载成功")
 
 
     def reset_all_action(self):

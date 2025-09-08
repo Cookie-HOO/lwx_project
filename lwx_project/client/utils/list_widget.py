@@ -87,9 +87,16 @@ class ListWidgetWrapper:
         return join.join([self.list_widget.item(i).text() for i in range(self.list_widget.count())])
 
     def get_text_by_index(self, index):
+        if index < 0:
+            index = self.list_widget.count() + index
         item = self.list_widget.item(index)
         original_text = item.text()
         return original_text
+
+    def get_selected_text(self):
+        selected_items = self.list_widget.selectedItems()
+        selected_texts = [item.text() for item in selected_items]
+        return selected_texts
 
     def set_text_by_index(self, index, text):
         item = self.list_widget.item(index)

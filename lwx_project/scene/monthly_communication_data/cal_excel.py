@@ -8,6 +8,8 @@ import typing
 import pandas as pd
 import os
 
+from openpyxl import load_workbook
+
 from lwx_project.scene.monthly_communication_data.check_excel import UploadInfo
 from lwx_project.scene.monthly_communication_data.const import DETAIL_PATH, IMPORTANT_PATH, TEMPLATE_PATH
 from lwx_project.utils.file import copy_file
@@ -17,43 +19,34 @@ from lwx_project.utils.time_cost import time_cost
 def cal_and_merge(upload_info: UploadInfo, code_rules_dict, after_one_done_callback):
     # 1. 计算所有的结果
     caled_result_list = detail_group_by(
-        excel_path_list=upload_info.upload_tuanxian_month_dict.values,
+        upload_info=upload_info,
         code_map=code_rules_dict,
         after_one_done_callback=after_one_done_callback,
     )
 
     # 2. 填充指定位置
-    caled_path = merge_caled_result(upload_info, caled_result_list)
-    return caled_path
+    files_map = merge_caled_result(upload_info, caled_result_list)
+    return files_map
 
 
 @time_cost
-def merge_caled_result(upload_info: UploadInfo, result_list):
-    # 1 找到对应的模板，如果没有拷贝一个新的出来
-    # 2 将结果逐一填充进去
-    # 3 返回新的结果
-    target_year_dir = os.path.join(IMPORTANT_PATH, str(upload_info.year))
-    
-    # 确保目标目录存在
-    os.makedirs(target_year_dir, exist_ok=True)
-    
+def fill_current_month_data(target_year_dir, upload_info: UploadInfo, result_list):
+
     caled_paths = []
 
     # 将计算结果填充模板
     for month, result_df in zip(upload_info.upload_tuanxian_month_dict.keys(), result_list):
-        this_path = os.path.join(target_year_dir, str(month)+"月同业交流数据.xlsx")
+        this_path = os.path.join(target_year_dir, str(month) + "月同业交流数据.xlsx")
         # 拷贝模板
         copy_file(TEMPLATE_PATH, this_path)
-        
+
         # 使用openpyxl来操作Excel，保留原有格式
-        from openpyxl import load_workbook
-        
         try:
             # 加载工作簿
             wb = load_workbook(this_path)
             # 获取第一个工作表
             ws = wb.active
-            
+
             # 创建分公司到行号的映射
             company_to_row = {}
             # 从第4行开始查找分公司（模板前3行是标题）
@@ -62,13 +55,13 @@ def merge_caled_result(upload_info: UploadInfo, result_list):
                 company_name = company_cell.value
                 if company_name and isinstance(company_name, str):
                     company_to_row[company_name] = row
-            
+
             # 将result_df中的数据填充到模板中
             for _, row_data in result_df.iterrows():
                 company_name = row_data['分公司']
                 if company_name in company_to_row:
                     row_num = company_to_row[company_name]
-                    
+
                     # 填充数据，保留原有格式
                     # 短期：<= 1年
                     # 意外险 - 第2列
@@ -93,7 +86,7 @@ def merge_caled_result(upload_info: UploadInfo, result_list):
                     # 年金险 - 第15列和第16列
                     ws.cell(row=row_num, column=15).value = row_data['年金险']
                     ws.cell(row=row_num, column=16).value = row_data['年金险']
-            
+
             # 保存工作簿
             wb.save(this_path)
             caled_paths.append(this_path)
@@ -102,38 +95,154 @@ def merge_caled_result(upload_info: UploadInfo, result_list):
             print(f"填充 {this_path} 的数据时出错: {str(e)}")
             continue
 
+@time_cost
+def fill_cumulative_data(target_year_dir, upload_info: UploadInfo):
     # 将汇总结果填充模板
-    need_cal_min_month = min(upload_info.upload_tuanxian_month_dict.keys())
-    files = sorted(os.listdir(target_year_dir), key=lambda x: int(x.split("月")[0]))
-    for file in files:  # 按顺序了
-        this_path = os.path.join(target_year_dir, file)
+    need_cal_min_month = min(upload_info.upload_tuanxian_month_dict.keys())  # 最小需要计算的月
+    candidate_files = [i for i in os.listdir(target_year_dir) if i.endswith(".xlsx")]
+    files = sorted(candidate_files, key=lambda x: int(x.split("月")[0]))
+    files_map = {f: os.path.join(target_year_dir, f) for f in files}
+    # 存储每个月的数据，用于计算后续月份的累计值
+    month_data_dict = {}
+
+    for file, this_path in files_map.items():  # 按顺序处理文件
         this_parts = file.split("月")
         this_month = int(this_parts[0])
         path_suffix = "月" + this_parts[1]
-        if this_month >= need_cal_min_month:  # 如果有月份进行计算了，那么从这个月份开始，后面的月份都需要重新汇总
-            # 需要将这些 this_path 下后面月份的全年数据重新汇总计算
-            if this_month == 1:  # 说明要从1月重新算
-                # 将1月的，当月数据，直接补充为全年的，只考虑4到26行
-                # 第2、3、4、5、6列，分别对应7、8、9、10、11列
-                # 第12、13、14、15、16列，分别对应17、18、19、20、21列
-                # TODO
-            else:
-                # 其他月份，只需要找到上一个月的汇总值，加到这个月
-                last_file = f"{this_month-1}{path_suffix}"
-                last_month_path = os.path.join(target_year_dir, last_file)
-                # 在 last month path中，找到 7、8、9、10、11 列对应截止当前月的汇总数据
-                #
 
+        # 遍历所有important中的文件（该算当月的已经保存到对应文件中了）
+        # 只需要从上传的最小月开始计算汇总，但是最小的月，需要上一个月的汇总
+        if this_month < need_cal_min_month-1:  # 需要额外多计算一个月份，用于给第一个月份做铺垫（第一个月份也需要上一个月份的汇总）
+            continue
+        # 加载当前文件
+        try:
+            wb = load_workbook(this_path)
+            ws = wb.active
+            MAX_ROW = ws.max_row - 1  # 最后一行是总计，不需要处理
 
-    # 返回最后一个处理的文件路径（或者所有路径的列表）
-    return caled_paths[-1] if caled_paths else None
+            if this_month == 1:  # 1月的情况，汇总值就是当月值
+                # 从第4行到第26行（包含）
+                for row_num in range(4, MAX_ROW + 1):
+                    # 短期部分：第2、3、4、5、6列分别对应7、8、9、10、11列
+                    for col_idx in range(2, 7):
+                        current_value = ws.cell(row=row_num, column=col_idx).value or 0
+                        # 确保值是数值类型
+                        current_value = float(current_value) if isinstance(current_value, (int, float, str)) else 0
+                        if isinstance(current_value, str):
+                            try:
+                                current_value = float(current_value)
+                            except ValueError:
+                                current_value = 0
+                        ws.cell(row=row_num, column=col_idx + 5).value = current_value  # 短期全年（+5列）
 
+                    # 长期部分：第12、13、14、15、16列分别对应17、18、19、20、21列
+                    for col_idx in range(12, 17):
+                        current_value = ws.cell(row=row_num, column=col_idx).value or 0
+                        # 确保值是数值类型
+                        current_value = float(current_value) if isinstance(current_value, (int, float, str)) else 0
+                        if isinstance(current_value, str):
+                            try:
+                                current_value = float(current_value)
+                            except ValueError:
+                                current_value = 0
+                        ws.cell(row=row_num, column=col_idx + 5).value = current_value  # 长期全年（+5列）
+
+                # 保存工作簿
+                wb.save(this_path)
+
+                # 保存1月的数据供后续月份使用
+                month_data = {
+                    'short_term': {},  # 存储短期全年数据
+                    'long_term': {}  # 存储长期全年数据
+                }
+                for row_num in range(4, MAX_ROW + 1):
+                    month_data['short_term'][row_num] = [ws.cell(row=row_num, column=col).value or 0 for col in
+                                                         range(7, 12)]
+                    month_data['long_term'][row_num] = [ws.cell(row=row_num, column=col).value or 0 for col in
+                                                        range(17, 22)]
+                month_data_dict[this_month] = month_data
+
+            else:  # 非1月的情况，汇总值是上月汇总值加本月当月值
+                # 找到上个月的文件
+                last_month = this_month - 1
+                if last_month in month_data_dict:
+                    last_month_data = month_data_dict[last_month]
+
+                    # 从第4行到第26行（包含）
+                    for row_num in range(4, MAX_ROW + 1):
+                        # 短期部分：上月汇总值（7、8、9、10、11）+ 本月当月值（2、3、4、5、6）
+                        for col_idx in range(5):
+                            last_value = last_month_data['short_term'].get(row_num, [0] * 5)[col_idx] or 0
+                            current_value = ws.cell(row=row_num, column=col_idx + 2).value or 0
+
+                            # 确保值是数值类型
+                            last_value = float(last_value) if isinstance(last_value, (int, float, str)) else 0
+                            current_value = float(current_value) if isinstance(current_value,
+                                                                               (int, float, str)) else 0
+                            if isinstance(last_value, str):
+                                try:
+                                    last_value = float(last_value)
+                                except ValueError:
+                                    last_value = 0
+                            if isinstance(current_value, str):
+                                try:
+                                    current_value = float(current_value)
+                                except ValueError:
+                                    current_value = 0
+
+                            # 计算并更新汇总值
+                            total_value = last_value + current_value
+                            ws.cell(row=row_num, column=col_idx + 7).value = total_value  # 短期全年（7-11列）
+
+                        # 长期部分：上月汇总值（17、18、19、20、21）+ 本月当月值（12、13、14、15、16）
+                        for col_idx in range(5):
+                            last_value = last_month_data['long_term'].get(row_num, [0] * 5)[col_idx] or 0
+                            current_value = ws.cell(row=row_num, column=col_idx + 12).value or 0
+
+                            # 确保值是数值类型
+                            last_value = float(last_value) if isinstance(last_value, (int, float, str)) else 0
+                            current_value = float(current_value) if isinstance(current_value,
+                                                                               (int, float, str)) else 0
+                            if isinstance(last_value, str):
+                                try:
+                                    last_value = float(last_value)
+                                except ValueError:
+                                    last_value = 0
+                            if isinstance(current_value, str):
+                                try:
+                                    current_value = float(current_value)
+                                except ValueError:
+                                    current_value = 0
+
+                            # 计算并更新汇总值
+                            total_value = last_value + current_value
+                            ws.cell(row=row_num, column=col_idx + 17).value = total_value  # 长期全年（17-21列）
+
+                    # 保存工作簿
+                    wb.save(this_path)
+
+                # 保存当前月份的数据供后续月份使用
+                month_data = {
+                    'short_term': {},
+                    'long_term': {}
+                }
+                for row_num in range(4, MAX_ROW + 1):
+                    month_data['short_term'][row_num] = [ws.cell(row=row_num, column=col).value or 0 for col in
+                                                         range(7, 12)]
+                    month_data['long_term'][row_num] = [ws.cell(row=row_num, column=col).value or 0 for col in
+                                                        range(17, 22)]
+                month_data_dict[this_month] = month_data
+        except Exception as e:
+            print(f"处理 {this_path} 的汇总值时出错: {str(e)}")
+            continue
+
+    return files_map
 
 # 核心的分组计算过程
 @time_cost
-def detail_group_by(excel_path_list, code_map: dict, after_one_done_callback: typing.Callable[[int], None]=None):
+def detail_group_by(upload_info: UploadInfo, code_map: dict, after_one_done_callback: typing.Callable[[int], None]=None):
     """
-    excel_path_list: excel的绝对路径的list
+    upload_info:
     code_map: 计算汇总结果时需要忽略或增加的代码，负数为忽略，正数为增加，绝对值为代码
         {
             "意外险": [],
@@ -167,7 +276,7 @@ def detail_group_by(excel_path_list, code_map: dict, after_one_done_callback: ty
     每个excel返回6列的一个dataframe
     """
     result_dfs = []
-    
+    excel_path_list = upload_info.upload_tuanxian_month_dict.values()
     # 验证excel_path_list不为空
     if not excel_path_list:
         return result_dfs
@@ -364,16 +473,31 @@ def detail_group_by(excel_path_list, code_map: dict, after_one_done_callback: ty
                 after_one_done_callback(index)
     return result_dfs
 
-# ⛳ 🆕⭐
+# 核心的汇总过程
+@time_cost
+def merge_caled_result(upload_info: UploadInfo, result_list):
+    # 1 找到对应的模板，如果没有拷贝一个新的出来
+    # 2 将结果逐一填充进去
+    # 返回所有可供下载的文件名称和路径的映射
+
+    target_year_dir = os.path.join(IMPORTANT_PATH, str(upload_info.year))
+
+    # 确保目标目录存在
+    os.makedirs(target_year_dir, exist_ok=True)
+    fill_current_month_data(target_year_dir, upload_info, result_list)  # 填充当月数据
+
+    files_map = fill_cumulative_data(target_year_dir, upload_info)  # 填充累计数据
+    return files_map
+
 if __name__ == '__main__':
     upload_info_ = UploadInfo(
         year=2025,
-        upload_tuanxian_month_dict = {6: DETAIL_PATH},
+        upload_tuanxian_month_dict = {3: DETAIL_PATH, 4: DETAIL_PATH, 5: DETAIL_PATH},
         important_month_dict={},
         officer_path = None,
     )
 
-    result_list_ = detail_group_by([DETAIL_PATH],{
+    result_list_ = detail_group_by(upload_info_,{
             "意外险": [],
             "健康险": [-7824, -7854],  # 后面可能动态变
             "寿险": [],
