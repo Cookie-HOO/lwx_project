@@ -81,7 +81,7 @@ def check_excels(upload_file_list) -> (bool, str, typing.Optional[UploadInfo]):
     upload_info = UploadInfo(
         year=year,
         upload_tuanxian_month_dict={k: v for k, v in zip(month_list, detail_path_list)},
-        important_month_dict={k: os.path.join(target_year_dir, v) for k, v in zip(important_month_list, os.listdir(IMPORTANT_PATH))},
+        important_month_dict={k: os.path.join(target_year_dir, v) for k, v in zip(important_month_list, candidate_files)},
         officer_path=officer_path_list[0] if officer_path_list else None
     )
     is_seq = True  # 是否连续
@@ -96,9 +96,9 @@ def check_excels(upload_file_list) -> (bool, str, typing.Optional[UploadInfo]):
         missing_month_str = ", ".join(missing_month)
         return False, f"整体月份不连续，缺少{missing_month_str}月团险核心数据", upload_info
 
-    # 2.4 校验如果是新作的内容，必须包含内勤外勤的人员数据 TODO
-    # if max(month_list) > max(important_month_list) and len(officer_path_list) == 0:
-    #     return False, "上传新月份时必须提供内外勤人员数据", upload_info
+    # 2.4 校验如果是新作的内容，必须包含内勤外勤的人员数据
+    if max(month_list) > max(important_month_list) and len(officer_path_list) == 0:
+        return False, "上传新月份时必须提供内外勤人员数据", upload_info
     return True, "", upload_info
 
 @time_cost
@@ -122,9 +122,9 @@ def get_upload_type_py(upload_file_path: str) -> str:
         if wb is not None:
             wb.close()  # 手动关闭文件，释放资源
 
-    for col_name in header_names:
-        if col_name is not None and "机构代码" in str(col_name):
-            return UPLOAD_TYPE_TUANXIAN
+    # for col_name in header_names:
+    if "机构名称" in str(header_names) and "险种代码" in str(header_names) and "保费收入/支出（含税）" in str(header_names):
+        return UPLOAD_TYPE_TUANXIAN
 
     return UPLOAD_TYPE_OFFICER
 

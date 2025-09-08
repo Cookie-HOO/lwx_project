@@ -1,5 +1,6 @@
 import json
 import os
+import time
 
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSignal
@@ -8,10 +9,10 @@ from lwx_project.client.base import BaseWorker, WindowWithMainWorker
 from lwx_project.client.const import UI_PATH
 from lwx_project.client.utils.list_widget import ListWidgetWrapper
 from lwx_project.client.utils.table_widget import TableWidgetWrapper
-from lwx_project.scene.monthly_communication_data.cal_excel import cal_and_merge
 from lwx_project.scene.monthly_communication_data.check_excel import check_excels, UploadInfo
-from lwx_project.scene.monthly_communication_data.const import CONFIG_PATH, IMPORTANT_PATH
-from lwx_project.utils.file import copy_file
+from lwx_project.scene.monthly_communication_data.const import CONFIG_PATH, IMPORTANT_PATH, BEFORE_CAL_FILE, CALED_FILE
+from lwx_project.scene.monthly_communication_data.main import cal_and_merge
+from lwx_project.utils.file import copy_file, get_file_name_with_extension
 
 
 class Worker(BaseWorker):
@@ -46,7 +47,9 @@ class Worker(BaseWorker):
             files_map = cal_and_merge(
                 upload_info = upload_info,
                 code_rules_dict=code_rules_dict,
-                after_one_done_callback=lambda index: None,
+                after_one_done_callback=lambda month: self.custom_after_one_cal_signal.emit({
+                    "month": month
+                }),
             )
             self.refresh_signal.emit("✅计算完成")
 
@@ -136,8 +139,6 @@ v1.1.2: 完成该场景
             }}
             with open(CONFIG_PATH, "w") as f:
                 f.write(json.dumps(self.config))
-        self.init_important_caled_month()  # 初始化上次计算完的月份
-
         # 配置保险代码规则的table
         self.baoxian_code_config_table_wrapper = TableWidgetWrapper(self.baoxian_code_config_table)
 
@@ -154,18 +155,13 @@ v1.1.2: 完成该场景
 
         self.upload_info = None  # 上传的结果
         self.result_files_map = None # 计算的结果
+        self.done_num = 0
+        self.last_run_time = None
+        self.start_run_time = None
 
     def register_worker(self):
         return Worker()
 
-    def init_important_caled_month(self):
-        # todo
-        # 1. 数字/10000，保留2位小数（万）
-        # 2. 展示：刚打开就展示所有计算完的内容，上传后，相应位置改成 月核心团险数据
-        # 3. 增加人员统计的功能
-        # 4. 模板需要改变：添加数字的起始行变了，列也变了（要增加两列）
-        #   /Users/bytedance/Downloads/农银人寿数据交流（2025年5-7）
-        pass
 
     def upload_files_action(self):
         file_names = self.upload_file_modal(["Excel Files", "*.xls*"], multi=True)
@@ -206,8 +202,18 @@ v1.1.2: 完成该场景
 
         # 设置上传结果
         need_cal_month_list = sorted(upload_info.upload_tuanxian_month_dict.keys())
+        caled_month_list = sorted(upload_info.important_month_dict.keys())
+        file_list = []
+        for i in range(1, 13):
+            if i not in need_cal_month_list+caled_month_list:
+                break
+            if i in need_cal_month_list:
+                file_list.append(BEFORE_CAL_FILE.format(month=i))
+            elif i in caled_month_list:
+                file_list.append(f"{get_file_name_with_extension(upload_info.important_month_dict.get(i))}")
+
         self.upload_list_wrapper.fill_data_with_color(
-            [f"{i}月核心团险数据" for i in need_cal_month_list]
+            file_list
         )
         self.upload_info = upload_info
 
@@ -253,12 +259,20 @@ v1.1.2: 完成该场景
             "code_rules_dict": code_rules_dict,
         }
         self.worker.add_params(params).start()
+        self.last_run_time = time.time()
+        self.start_run_time = self.last_run_time
 
         # 增加loading tip
         self.tip_loading.set_titles(["计算.", "计算..", "计算..."]).show()
     def custom_after_one_cal(self, result):
-        # self.tip_loading.hide()
-        pass
+        self.done_num += 1
+        month = result.get("month")
+        self.upload_list_wrapper.set_text_by_index(month-1, f"{CALED_FILE.format(month=month)}（{round(time.time()-self.last_run_time,2)}s）")
+        need_cal = len(self.upload_info.upload_tuanxian_month_dict)
+        new_text = f"当前年份：{self.upload_info.year}，汇总计算 {self.done_num}/{need_cal}个月度数据，平均耗时{round((time.time()-self.start_run_time)/self.done_num,2)}s"
+        self.upload_info_text.setText(new_text)
+        self.last_run_time = time.time()
+
 
     def custom_after_all_cal(self, result):
         self.tip_loading.hide()
@@ -270,11 +284,15 @@ v1.1.2: 完成该场景
 
 
     def download_file_action(self):
+        if self.result_files_map is None:
+            self.modal(level="warn", msg="请先计算")
+            return
         selected = self.upload_list_wrapper.get_selected_text()
         if selected:
             file = selected[0]
         else:
             file = self.upload_list_wrapper.get_text_by_index(-1)
+        file = file.split("(")[0]
         file_path = os.path.join(IMPORTANT_PATH, str(self.upload_info.year), file)
         target_file_path = self.download_file_modal(file)
         copy_file(file_path, target_file_path)
@@ -285,7 +303,10 @@ v1.1.2: 完成该场景
         self.upload_list_wrapper.clear()  # 上传的list
 
         self.upload_info = None  # 上传的结果
-        self.caled_path = None # 计算的结果
+        self.result_files_map = None # 计算的结果
+        self.done_num = 0
+        self.last_run_time = None
+        self.start_run_time = None
 
         self.modal("info", title="Success", msg="重置成功")
 

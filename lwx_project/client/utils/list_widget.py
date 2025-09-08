@@ -98,9 +98,11 @@ class ListWidgetWrapper:
         selected_texts = [item.text() for item in selected_items]
         return selected_texts
 
-    def set_text_by_index(self, index, text):
+    def set_text_by_index(self, index, text, color=None):
         item = self.list_widget.item(index)
         item.setText(text)
+        if color is not None:
+            item.setBackground(QColor(*color))
 
     def clear(self):
         self.list_widget.clear()
