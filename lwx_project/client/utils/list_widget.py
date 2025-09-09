@@ -87,13 +87,25 @@ class ListWidgetWrapper:
         return join.join([self.list_widget.item(i).text() for i in range(self.list_widget.count())])
 
     def get_text_by_index(self, index):
+        if index < 0:
+            index = self.list_widget.count() + index
         item = self.list_widget.item(index)
         original_text = item.text()
         return original_text
 
-    def set_text_by_index(self, index, text):
+    def get_selected_text(self):
+        selected_items = self.list_widget.selectedItems()
+        selected_texts = [item.text() for item in selected_items]
+        return selected_texts
+
+    def set_text_by_index(self, index, text, color=None):
         item = self.list_widget.item(index)
         item.setText(text)
+        if color is not None:
+            item.setBackground(QColor(*color))
+
+    def clear(self):
+        self.list_widget.clear()
 
 
 # todo: 优化这里的方法

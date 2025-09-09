@@ -8,7 +8,8 @@ from email.header import Header
 import os
 import mimetypes
 
-from lwx_project.scene.daily_baoxian.const import OLD_RESULT_PATH, AUTH_PATH
+from lwx_project.scene.const import AUTH_PATH
+from lwx_project.scene.daily_baoxian.const import OLD_RESULT_PATH
 
 
 def send_mail(from_email, to_email, subject, body, attachments):
@@ -21,7 +22,7 @@ def send_mail(from_email, to_email, subject, body, attachments):
     :param attachments: 附件列表
     :return:
     """
-    # 读取所有可供鉴权的信息 important/auth.json
+    # 读取所有可供鉴权的信息 data/auth.json
     with open(AUTH_PATH) as f:
         AUTH = json.loads(f.read())
 
