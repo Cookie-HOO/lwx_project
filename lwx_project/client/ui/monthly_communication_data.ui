@@ -263,7 +263,14 @@
           <item>
            <widget class="QPushButton" name="download_file_button">
             <property name="text">
-             <string>3. 下载文件</string>
+             <string>下载文件</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="send_file_button">
+            <property name="text">
+             <string>发送邮件</string>
             </property>
            </widget>
           </item>
