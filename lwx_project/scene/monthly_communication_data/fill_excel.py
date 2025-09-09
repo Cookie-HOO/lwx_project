@@ -132,8 +132,8 @@ def fill_cumulative_data(target_year_dir, upload_info: UploadInfo):
 
         # 遍历所有important中的文件（该算当月的已经保存到对应文件中了）
         # 只需要从上传的最小月开始计算汇总，但是最小的月，需要上一个月的汇总
-        if this_month < need_cal_min_month - 1:  # 需要额外多计算一个月份，用于给第一个月份做铺垫（第一个月份也需要上一个月份的汇总）
-            continue
+        # if this_month < need_cal_min_month - 1:  # 需要额外多计算一个月份，用于给第一个月份做铺垫（第一个月份也需要上一个月份的汇总）
+        #     continue
         # 加载当前文件
         try:
             wb = load_workbook(this_path)

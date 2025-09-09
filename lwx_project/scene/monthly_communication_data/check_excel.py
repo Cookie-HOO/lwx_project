@@ -97,7 +97,7 @@ def check_excels(upload_file_list) -> (bool, str, typing.Optional[UploadInfo]):
         return False, f"整体月份不连续，缺少{missing_month_str}月团险核心数据", upload_info
 
     # 2.4 校验如果是新作的内容，必须包含内勤外勤的人员数据
-    if max(month_list) > max(important_month_list) and len(officer_path_list) == 0:
+    if (not important_month_list or max(month_list) > max(important_month_list)) and len(officer_path_list) == 0:
         return False, "上传新月份时必须提供内外勤人员数据", upload_info
     return True, "", upload_info
 
@@ -123,10 +123,12 @@ def get_upload_type_py(upload_file_path: str) -> str:
             wb.close()  # 手动关闭文件，释放资源
 
     # for col_name in header_names:
-    if "机构名称" in str(header_names) and "险种代码" in str(header_names) and "保费收入/支出（含税）" in str(header_names):
+    # if "机构名称" in str(header_names) and "险种代码" in str(header_names) and "保费收入/支出（含税）" in str(header_names):
+    if "机构代码" in str(header_names):
         return UPLOAD_TYPE_TUANXIAN
-
-    return UPLOAD_TYPE_OFFICER
+    elif "人力数" in str(header_names):
+        return UPLOAD_TYPE_OFFICER
+    return ""
 
 @time_cost
 def get_month_from_detail_path(detail_path: str) -> datetime.date:

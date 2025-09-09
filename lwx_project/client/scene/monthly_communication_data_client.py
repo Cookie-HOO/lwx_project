@@ -13,6 +13,7 @@ from lwx_project.scene.monthly_communication_data.check_excel import check_excel
 from lwx_project.scene.monthly_communication_data.const import CONFIG_PATH, IMPORTANT_PATH, BEFORE_CAL_FILE, CALED_FILE
 from lwx_project.scene.monthly_communication_data.main import cal_and_merge
 from lwx_project.utils.file import copy_file, get_file_name_with_extension
+from lwx_project.utils.mail import send_mail
 
 
 class Worker(BaseWorker):
@@ -77,7 +78,12 @@ class MyMonthlyCommunicationDataClient(WindowWithMainWorker):
 ❗🔧config.json
     使用方式：使用过程中的配置文件，自动记录，无需手动管理
         记录配置的各种险种的计算规则
-
+        
+=========== 系统配置文件 ===========
+❗🔧auth.json
+    在data根路径下
+    使用方式：{"liwenxuan_0112@126.com": "token"} 的方式进行记录
+    
 =========== 注意事项 ===========
 1. 支持多个核心团险数据excel（根据列的情况自动识别是哪一个月的）
 2. 每次执行会保存这次执行的配置
@@ -89,6 +95,11 @@ v1.1.2: 完成该场景
 - 配置险种、上传
 - 计算、融合
 - 指定月份下载
+
+v1.1.3: 
+- feat: 增加发送邮件
+- fix: 校验上传文件的问题
+- update: auth.json的路径修改
     """
 
     def __init__(self):
@@ -148,6 +159,8 @@ v1.1.2: 完成该场景
         self.cal_button.clicked.connect(self.cal_baoxian_action)
         # 下载文件按钮
         self.download_file_button.clicked.connect(self.download_file_action)
+        # 发送邮件按钮
+        # self.send_file_button.clicked.connect(self.send_file_action)
         # 重置按钮
         self.reset_button.clicked.connect(self.reset_all_action)
         # 展示上传文件结果
@@ -298,6 +311,31 @@ v1.1.2: 完成该场景
         copy_file(file_path, target_file_path)
         self.modal(level="info", msg="✅下载成功")
 
+    def send_file_action(self):
+        selected = self.upload_list_wrapper.get_selected_text()
+        if selected:
+            file = selected[0]
+        else:
+            file = self.upload_list_wrapper.get_text_by_index(-1)
+        file = file.split("(")[0]
+        file_path = os.path.join(IMPORTANT_PATH, str(self.upload_info.year), file)
+
+        check_yes = self.modal(level="check_yes", msg=f"即将发送：{file}", default="no")
+        if not check_yes:
+            return
+        # 发送文件
+        from_email = "liwenxuan_0112@126.com"
+        to_email = "liwenxuanrs@abchina.com"
+        subject = file
+        attachments = [file_path]
+        send_mail(
+            from_email=from_email,
+            to_email=to_email,
+            subject=subject,
+            body="",
+            attachments=attachments
+        )
+        self.modal(level="tip", count_down=1, msg="✅发送成功(2秒后关闭)")
 
     def reset_all_action(self):
         self.upload_list_wrapper.clear()  # 上传的list
