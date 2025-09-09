@@ -68,7 +68,7 @@ class MyMonthlyCommunicationDataClient(WindowWithMainWorker):
 上传多个核心团险数据和内勤外勤人员统计，生成同业交流数据汇总
 1. 上传多个核心团险数据
 2. 根据分公司做groupby，计算各种险种的金额
-3. 和important中之前计算的结果
+3. 和important中之前计算的结果进行合并
 每个月做一次
 
 =========== Important文件 ===========
@@ -335,7 +335,7 @@ v1.1.3:
             body="",
             attachments=attachments
         )
-        self.modal(level="tip", count_down=1, msg="✅发送成功(2秒后关闭)")
+        self.modal(level="tip", count_down=2, msg="✅发送成功(2秒后关闭)")
 
     def reset_all_action(self):
         self.upload_list_wrapper.clear()  # 上传的list
