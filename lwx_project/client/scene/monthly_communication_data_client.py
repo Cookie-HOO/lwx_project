@@ -160,7 +160,7 @@ v1.1.3:
         # 下载文件按钮
         self.download_file_button.clicked.connect(self.download_file_action)
         # 发送邮件按钮
-        # self.send_file_button.clicked.connect(self.send_file_action)
+        self.send_file_button.clicked.connect(self.send_file_action)
         # 重置按钮
         self.reset_button.clicked.connect(self.reset_all_action)
         # 展示上传文件结果
