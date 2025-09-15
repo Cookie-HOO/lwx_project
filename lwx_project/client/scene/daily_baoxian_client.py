@@ -178,6 +178,12 @@ v1.1.0: 实现基础版本的搜索
 - 发送邮件
 
 v1.1.1: 调整顺序，先查找政府网
+
+v1.1.3:
+- feat: 增加地级市的查找
+- update: 去掉责任险（之前是去掉雇主责任险）
+- update: 预算最多保留四位小数
+- bugfix: 保存时会有空行
     """
 
     step1_help_info_text = """设置日期后，进行搜索，需要指定浏览器路径（会强制关闭所有打开的浏览器）"""
@@ -318,6 +324,7 @@ v1.1.1: 调整顺序，先查找政府网
         # 【提示信息】：获取状态、是否选择
         # 【关键信息】：详情链接（复制）、项目名称、采购单位名称、预算/限价（万元）、获取招标文件的截止日期、地区
         # 【参考信息】：原标题、发布日期、招采平台、采购方式、详情信息、链接
+        buyer_name_prefix = f"（{item.key_city}）" if item.key_city else ""
         self.collected_baoxian_table_wrapper.add_rich_widget_row([
             {
                 "type": "readonly_text",  # 获取状态
@@ -338,7 +345,7 @@ v1.1.1: 调整顺序，先查找政府网
                 "value": item.simple_title,
             }, {  # 关键信息：采购单位名称
                 "type": "editable_text",
-                "value": item.buyer_name,
+                "value": f"{buyer_name_prefix}{item.buyer_name}",
             }, {  # 关键信息：预算
                 "type": "editable_text",
                 "value": item.budget,

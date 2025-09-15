@@ -3,6 +3,7 @@ import re
 import time
 import typing
 
+from lwx_project.scene.daily_baoxian.area_data import find_city_for_buyer_name
 from lwx_project.scene.daily_baoxian.const import PROVINCES_ABBR, PROVINCES
 from lwx_project.utils.browser import init_local_browser, close_all_browser_instances
 
@@ -36,6 +37,8 @@ class BaoxianItem:
 
         self._buyer_name = ""
 
+        self.key_city = ""  # 地级市，有时buyer_name中写的很细，不知道是哪里的，所以解析出地级市补充到buyer_name中
+
     @staticmethod
     def get_province_abbr_first(content):
         for p in PROVINCES_ABBR + PROVINCES:  # 先找简称
@@ -58,8 +61,14 @@ class BaoxianItem:
         return self
 
     def set_detail(self, detail):
+        # 赋值
         self.detail = detail
+        # 解析内容
         self.parse_from_detail()
+        # 增加地级市
+        province, key_city = find_city_for_buyer_name(self.province,self.buyer_name,self.title)
+        self.key_city = key_city
+        self.province = self.province or province
         return self
 
     # 正则匹配detail的工具函数
@@ -133,7 +142,7 @@ class BaoxianItem:
                 parsed_budget = str(float(parsed_budget.replace(",", "")))
             elif parsed_budget.endswith("元") or (len(parsed_budget) > 0 and parsed_budget[-1].isdigit()) or parsed_budget.startswith("元"):
                 parsed_budget = parsed_budget.replace("元", "").strip()
-                parsed_budget = str(float(parsed_budget.replace(",", "")) / 10000)
+                parsed_budget = str(round(float(parsed_budget.replace(",", "")) / 10000, 4))  # noqa
             else:
                 pass
         except ValueError:
@@ -266,6 +275,10 @@ class BaoxianItem:
         if len(parsed_simple_title) > 2 and parsed_simple_title[2] == "市" and is_all_chinese(parsed_simple_title[:2]):  # xx市
             parsed_simple_title = parsed_simple_title[3:]
 
+        # 3. 兜底处理
+        # 3.1 如果处理完后，是已「）」右括号开头，需要去掉
+        if parsed_simple_title.startswith("）"):
+            parsed_simple_title = parsed_simple_title[1:]
         return parsed_simple_title
 
     def get_default_buyer_name(self):
@@ -317,9 +330,10 @@ class Worker:
         检查所有条目，给符合条件的设置属性 default_available
         1. 省市名称符合要求：以下22个之一
             北京、重庆、江苏、黑龙江、浙江、上海、湖南、安徽、河北、山东、江西、福建、厦门、广东、四川、辽宁、湖北、陕西、山西、宁波、广西、河南
-        2. 标题中不能含有「雇主责任险」、「第三者意外险」 字样
+        2. 标题中不能含有「责任险」、「第三者意外险」 字样
         """
         target_province_list = "北京、重庆、江苏、黑龙江、浙江、上海、湖南、安徽、河北、山东、江西、福建、厦门、广东、四川、辽宁、湖北、陕西、山西、宁波、广西、河南"
+        omit_baoxian_list = ["责任险", "第三者意外险"]
         # 1. 省市名称符合条件
         if baoxian_item.province not in target_province_list:
             baoxian_item.default_available = False
@@ -327,14 +341,11 @@ class Worker:
             return False
 
         # 2. 没有出现特殊信息
-        if "雇主责任险" in baoxian_item.title:
-            baoxian_item.default_available = False
-            baoxian_item.not_available_reason = f"标题包含「雇主责任险」"
-            return False
-        elif "第三者意外险" in baoxian_item.title:
-            baoxian_item.default_available = False
-            baoxian_item.not_available_reason = f"标题包含「第三者意外险」"
-            return False
+        for omit_baoxian in omit_baoxian_list:
+            if omit_baoxian in baoxian_item.title:
+                baoxian_item.default_available = False
+                baoxian_item.not_available_reason = f"标题包含「{omit_baoxian}」"
+                return False
 
         baoxian_item.default_available = True
         return True

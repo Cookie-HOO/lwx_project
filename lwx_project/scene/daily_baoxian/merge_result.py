@@ -145,79 +145,74 @@ def merge(new_df):
         
         # 5. 合并新旧数据
         combined_data = valid_rows + new_data
-        
-        # 6. 清空现有数据（保留标题）
-        for row in ws.iter_rows(min_row=header_row_index + 1):
-            for cell in row:
-                cell.value = None
-                # 清除背景色
-                cell.fill = PatternFill(fill_type=None)
-        
+
+        # 6. 彻底删除标题行之后的所有数据行（保留标题）
+        start_delete_row = header_row_index + 1  # 第4行开始是数据
+
+        # 获取当前最大行号
+        max_row = ws.max_row
+        if max_row >= start_delete_row:
+            # 删除从 start_delete_row 到最后一行的所有行
+            ws.delete_rows(start_delete_row, max_row - start_delete_row + 1)
+
         # 7. 写入合并后的数据并添加序号
-        # 定义样式
         yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
-        # 设置边框样式
         border = Border(
             left=Side(style='thin'),
             right=Side(style='thin'),
             top=Side(style='thin'),
             bottom=Side(style='thin')
         )
-        # 设置宋体12号字
         simsun_font = Font(name='SimSun', size=12)
-        # 设置水平垂直居中对齐
         center_align = Alignment(horizontal='center', vertical='center')
-        # 招采平台列文本自动换行
         wrap_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        
+
+        # 从 header_row_index + 1 开始写入新数据（现在这里是第一行数据）
         for idx, row_data in enumerate(combined_data, 1):
-            # 写入序号并设置样式
+            # 写入序号（第1列）
             serial_cell = ws.cell(row=header_row_index + idx, column=1)
             serial_cell.value = idx
             serial_cell.alignment = center_align
             serial_cell.border = border
-            
-            # 为新加入的行的序号列添加黄色背景
+
+            # 新增行标记：如果 idx > len(valid_rows)，说明是本次新增的
             if idx > len(valid_rows):
                 serial_cell.fill = yellow_fill
-            
-            # 写入数据
-            # 设置行高为30
+
+            # 设置行高
             ws.row_dimensions[header_row_index + idx].height = 30
-            
+
+            # 写入其他字段（从第2列开始）
             for col_idx, value in enumerate(row_data, 2):
                 cell = ws.cell(row=header_row_index + idx, column=col_idx)
                 cell.value = value
                 cell.font = simsun_font
-                if col_idx == 7:  # 获取招标文件的截止日期列
+
+                # 格式化“获取招标文件的截止日期”列（第7列）
+                if col_idx == 7:
                     cell.number_format = 'm"月"d"日"'
 
-                # 招采平台列设置自动换行(第8列，col_idx=8)，其他列居中
+                # 招采平台列（第8列）自动换行
                 if col_idx == 8:
                     cell.alignment = wrap_align
                 else:
                     cell.alignment = center_align
 
-                # 仅对有值的单元格应用边框
+                # 只有非空值才加边框
                 if value is not None and str(value).strip() != '':
                     cell.border = border
-                
-                # 为新加入的行添加黄色背景
+
+                # 新增行设置黄色背景
                 if idx > len(valid_rows):
                     cell.fill = yellow_fill
-                    cell.font = simsun_font
-                # 仅对有值的单元格应用边框
-                if value is not None and str(value).strip() != '':
-                    cell.border = border
-        # 清除新加入行之后所有行的边框
+                    if value is not None and str(value).strip() != '':
+                        cell.border = border  # 非空才加边框
+
+        # 8. 清理后续可能残留的空行（保险起见）
         last_written_row = header_row_index + len(combined_data)
-        for row in ws.iter_rows(min_row=last_written_row + 1):
-            for cell in row:
-                cell.border = Border()  # 移除边框
-        
-        # 8. 更新日期（在第二行第一格）
-        # today_str = today.strftime('%Y-%m-%d')
-        # ws.cell(row=2, column=1).value = f"更新日期：{today_str}"
+        max_existing_row = ws.max_row
+        if max_existing_row > last_written_row:
+            ws.delete_rows(last_written_row + 1, max_existing_row - last_written_row)
             
         # 9. 保存文件
         wb.save(old_excel_path)
