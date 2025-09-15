@@ -79,7 +79,7 @@ class BidInfoBaoxianItem(BaoxianItem):
             elif parsed_budget.endswith("元") or (
                     len(parsed_budget) > 0 and parsed_budget[-1].isdigit()) or parsed_budget.startswith("元"):
                 parsed_budget = parsed_budget.replace("元", "").strip()
-                parsed_budget = str(float(parsed_budget.replace(",", "")) / 10000)
+                parsed_budget = str(round(float(parsed_budget.replace(",", "")) / 10000, 4))  # noqa
             else:
                 pass
         except ValueError:
