@@ -20,7 +20,7 @@
    <bool>true</bool>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout_3" stretch="1,99">
+   <layout class="QVBoxLayout" name="verticalLayout">
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_8">
       <item>
@@ -52,7 +52,7 @@
          </size>
         </property>
         <property name="text">
-         <string>每月同业交流数据汇总计算</string>
+         <string>每月east数据汇总计算</string>
         </property>
        </widget>
       </item>
@@ -86,209 +86,121 @@
      </layout>
     </item>
     <item>
-     <widget class="QSplitter" name="splitter">
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QLabel" name="baoixan_code_rule_table">
+        <property name="text">
+         <string>险种代码忽略规则：</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="omit_baoxian_code_text">
+        <property name="text">
+         <string>7824,2801,7854</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>目标年份：</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="target_year_text">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="Line" name="line">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <widget class="QWidget" name="verticalLayoutWidget_2">
-       <layout class="QVBoxLayout" name="verticalLayout_2">
-        <item>
-         <widget class="QLabel" name="baoixan_code_rule_table">
-          <property name="text">
-           <string>配置险种代码规则</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QTableWidget" name="baoxian_code_config_table">
-          <row>
-           <property name="text">
-            <string>意外险</string>
-           </property>
-          </row>
-          <row>
-           <property name="text">
-            <string>健康险</string>
-           </property>
-          </row>
-          <row>
-           <property name="text">
-            <string>寿险</string>
-           </property>
-          </row>
-          <row>
-           <property name="text">
-            <string>医疗基金</string>
-           </property>
-          </row>
-          <row>
-           <property name="text">
-            <string>年金险</string>
-           </property>
-          </row>
-          <column>
-           <property name="text">
-            <string>险种代码开头标记</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>新增险种代码</string>
-           </property>
-           <property name="background">
-            <color>
-             <red>207</red>
-             <green>240</green>
-             <blue>198</blue>
-            </color>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>忽略险种代码</string>
-           </property>
-           <property name="background">
-            <color>
-             <red>242</red>
-             <green>195</green>
-             <blue>189</blue>
-            </color>
-           </property>
-          </column>
-          <item row="0" column="0">
-           <property name="text">
-            <string>68</string>
-           </property>
-           <property name="flags">
-            <set>ItemIsSelectable|ItemIsDragEnabled|ItemIsDropEnabled|ItemIsUserCheckable|ItemIsEnabled</set>
-           </property>
-          </item>
-          <item row="0" column="1">
-           <property name="text">
-            <string/>
-           </property>
-          </item>
-          <item row="1" column="0">
-           <property name="text">
-            <string>78</string>
-           </property>
-           <property name="flags">
-            <set>ItemIsSelectable|ItemIsDragEnabled|ItemIsDropEnabled|ItemIsUserCheckable|ItemIsEnabled</set>
-           </property>
-          </item>
-          <item row="1" column="2">
-           <property name="text">
-            <string>7824,7854</string>
-           </property>
-          </item>
-          <item row="2" column="0">
-           <property name="text">
-            <string>18</string>
-           </property>
-           <property name="flags">
-            <set>ItemIsSelectable|ItemIsDragEnabled|ItemIsDropEnabled|ItemIsUserCheckable|ItemIsEnabled</set>
-           </property>
-          </item>
-          <item row="3" column="0">
-           <property name="text">
-            <string/>
-           </property>
-           <property name="flags">
-            <set>ItemIsSelectable|ItemIsDragEnabled|ItemIsDropEnabled|ItemIsUserCheckable|ItemIsEnabled</set>
-           </property>
-          </item>
-          <item row="3" column="1">
-           <property name="text">
-            <string>7824,7854</string>
-           </property>
-          </item>
-          <item row="4" column="0">
-           <property name="text">
-            <string>28</string>
-           </property>
-           <property name="flags">
-            <set>ItemIsSelectable|ItemIsDragEnabled|ItemIsDropEnabled|ItemIsUserCheckable|ItemIsEnabled</set>
-           </property>
-          </item>
-          <item row="4" column="2">
-           <property name="text">
-            <string/>
-           </property>
-          </item>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QWidget" name="verticalLayoutWidget">
-       <layout class="QVBoxLayout" name="verticalLayout">
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout">
-          <item>
-           <widget class="QPushButton" name="upload_button">
-            <property name="text">
-             <string>1. 上传文件</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="label_3">
-            <property name="layoutDirection">
-             <enum>Qt::LeftToRight</enum>
-            </property>
-            <property name="text">
-             <string>&gt;&gt;</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="cal_button">
-            <property name="text">
-             <string>2. 开始计算</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="label_4">
-            <property name="text">
-             <string>&gt;&gt;</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="download_file_button">
-            <property name="text">
-             <string>下载文件</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="send_file_button">
-            <property name="text">
-             <string>发送邮件</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <widget class="QLabel" name="upload_info_text">
-          <property name="text">
-           <string>当前年份：--，汇总计算 --/--个月度数据</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QListWidget" name="upload_list"/>
-        </item>
-       </layout>
-      </widget>
      </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QPushButton" name="upload_button">
+        <property name="text">
+         <string>1. 上传文件</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>&gt;&gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="cal_button">
+        <property name="text">
+         <string>2. 开始计算</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_3">
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
+        </property>
+        <property name="text">
+         <string>&gt;&gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="download_file_button">
+        <property name="text">
+         <string>下载文件</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="send_file_button">
+        <property name="text">
+         <string>发送邮件</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QLabel" name="upload_info_text">
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QListWidget" name="file_list"/>
     </item>
    </layout>
   </widget>
