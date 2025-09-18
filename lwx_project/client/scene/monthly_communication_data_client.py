@@ -272,11 +272,19 @@ v1.1.3:
             "code_rules_dict": code_rules_dict,
         }
         self.worker.add_params(params).start()
+
+        # 保存这次跑的配置
+        self.config["baoxian_code_rule"] = code_rules_dict
+        with open(CONFIG_PATH, "w") as f:
+            f.write(json.dumps(self.config))
+
+        # 记录开始时间
         self.last_run_time = time.time()
         self.start_run_time = self.last_run_time
 
         # 增加loading tip
         self.tip_loading.set_titles(["计算.", "计算..", "计算..."]).show()
+
     def custom_after_one_cal(self, result):
         self.done_num += 1
         month = result.get("month")

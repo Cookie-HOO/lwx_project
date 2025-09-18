@@ -9,12 +9,14 @@ from lwx_project.client.base import BaseWorker, WindowWithMainWorker
 from lwx_project.client.const import UI_PATH
 from lwx_project.client.utils.list_widget import ListWidgetWrapper
 from lwx_project.client.utils.table_widget import TableWidgetWrapper
-from lwx_project.scene.monthly_communication_data.check_excel import check_excels, UploadInfo
-from lwx_project.scene.monthly_communication_data.const import CONFIG_PATH, IMPORTANT_PATH, BEFORE_CAL_FILE, CALED_FILE
-from lwx_project.scene.monthly_communication_data.main import cal_and_merge
+from lwx_project.scene.monthly_east_data.check_excel import check_excels
+from lwx_project.scene.monthly_east_data.const import CONFIG_PATH, IMPORTANT_PATH, TEMPLATE_FILE_NAME_PREFIX, \
+    TEMPLATE_FILE_NAME_SUFFIX
+from lwx_project.scene.monthly_east_data.main import cal_and_merge
 from lwx_project.utils.file import copy_file, get_file_name_with_extension
 from lwx_project.utils.mail import send_mail
 from lwx_project.utils.time_obj import TimeObj
+from lwx_project.utils.year_month_obj import YearMonth
 
 
 class Worker(BaseWorker):
@@ -29,7 +31,7 @@ class Worker(BaseWorker):
 
     def my_run(self):
         stage = self.get_param("stage")
-        if stage == "check_upload":
+        if stage == "check_upload":  # {"核心团险数据": "", "名称": "", "名称代码映射": ""}
             self.refresh_signal.emit("上传文件校验中...")
             file_path_list = self.get_param("file_path_list")
             is_success, error_msg, res = check_excels(file_path_list)
@@ -37,25 +39,28 @@ class Worker(BaseWorker):
             self.custom_after_check_upload_signal.emit({
                 "is_success": is_success,
                 "error_msg": error_msg,
-                "res": res,
+                "upload_file_path_map": res,
             })
 
 
         elif stage == "start_cal":
-            upload_info: UploadInfo = self.get_param("upload_info")
-            code_rules_dict = self.get_param("code_rules_dict")
+            last_month_template_path: str = self.get_param("last_month_template_path")
+            upload_file_path_map: dict = self.get_param("upload_file_path_map")
+            target_year: str = self.get_param("target_year")
+            target_file_path: str = self.get_param("target_file_path")
+            omit_baoxian_code_list: list = self.get_param("omit_baoxian_code_list")
 
-            files_map = cal_and_merge(
-                upload_info=upload_info,
-                code_rules_dict=code_rules_dict,
-                after_one_done_callback=lambda month: self.custom_after_one_cal_signal.emit({
-                    "month": month
-                }),
+            cal_and_merge(
+                last_month_template_path,
+                upload_file_path_map,
+                target_year,
+                target_file_path,
+                omit_baoxian_code_list,
             )
             self.refresh_signal.emit("✅计算完成")
 
             self.custom_after_all_cal_signal.emit({
-                "files_map": files_map
+
             })
 
 
@@ -74,7 +79,7 @@ class MyMonthlyEastDataClient(WindowWithMainWorker):
 =========== Important文件 ===========
 ❗📗保险业务和其他类关联交易协议模板.xlsx
     保存内容模板，每次需要复制填数
-    注意生成的文件格式：保险业务和其他类关联交易协议模板（202506农行员福+其他关联方）.xlsx
+    注意生成的文件格式：保险业务和其他类关联交易协议模板（202502农行员福+其他关联方）.xlsx
 
 ❗🔧config.json
     使用方式：使用过程中的配置文件，自动记录，无需手动管理
@@ -91,7 +96,9 @@ class MyMonthlyEastDataClient(WindowWithMainWorker):
     核心团险数据表：超过2列
     名称代码映射表：2列（没有列名，第一列是名称）
     名称表：1列（没有列名，第一列是名称）
-3. 
+3. 如果想要做2025-03的，必须保证在important目录下有2025-02的内容，文件名如下
+    保险业务和其他类关联交易协议模板（202502农行员福+其他关联方）.xlsx
+    开始计算前会进行检测
     """
 
     release_info_text = """
@@ -141,11 +148,10 @@ v1.1.4 完成该场景
             self.config = {"omit_baoxian_code": "7824,2801,7854"}
             with open(CONFIG_PATH, "w") as f:
                 f.write(json.dumps(self.config))
-        # todo: 计算时这个config没有保存每次都要重新做（同业交流那里也是）
 
         # 设置上个月的年份
-        target_year = TimeObj().year_of_last_month
-        self.target_year_text.setText(str(target_year))
+        year_month_obj  = YearMonth()
+        self.target_year_month_text.setText(year_month_obj.sub_one_month().str_with_dash)
 
         # 上传文件按钮
         self.upload_button.clicked.connect(self.upload_files_action)
@@ -159,9 +165,9 @@ v1.1.4 完成该场景
         self.reset_button.clicked.connect(self.reset_all_action)
         # 展示上传文件结果
         self.file_list_wrapper = ListWidgetWrapper(self.file_list)
-        #
+
         self.upload_file_path_map = None  # 上传的结果 dict，{"核心团险数据": "", "名称": "", "名称代码映射": ""}
-        self.finish_file_name = None  # 计算的结果文件名
+        self.this_file_name = None  # 这次需要计算出来的文件名（基于模板format年月信息的）
 
 
     def register_worker(self):
@@ -194,9 +200,13 @@ v1.1.4 完成该场景
             self.modal(level="warn", msg=error_msg)
             return
 
-        file_list = []  # todo: 获取历史上做完的结果，拼上这次要做的
+        # 拼接展示内容
+        year_month_obj = YearMonth.new_from_str(self.target_year_month_text.text())
+        file_list = [f for f in os.listdir(IMPORTANT_PATH) if f.startswith(TEMPLATE_FILE_NAME_PREFIX)]
+        self.this_file_name = TEMPLATE_FILE_NAME_PREFIX + year_month_obj.str_with_only_number + TEMPLATE_FILE_NAME_SUFFIX
+
         self.upload_list_wrapper.fill_data_with_color(
-            file_list
+            file_list + [self.this_file_name]
         )
         self.upload_file_path_map = upload_file_path_map
 
@@ -205,14 +215,38 @@ v1.1.4 完成该场景
             self.modal(level="warn", msg="请先上传核心团险数据、名称表、名称代码映射表")
             return
 
+        # 检查时间格式正确
+        year_month_obj = YearMonth.new_from_str(self.target_year_month_text.text())
+        if year_month_obj is None:
+            self.modal(level="warn", msg="年-月格式错误，正确示例：2025-01或2025-10")
+            return
+
+        # 检查存在上个月的计算结果
+        last_month_result = []
+        for file in self.file_list_wrapper.get_data_as_list():
+            if year_month_obj.sub_one_month().str_with_only_number in file:
+                last_month_result.append(file)
+                break
+        # 上面for的任务是寻找包含上个月内容的文件，这里的else就是如果找不到（没有触发break）
+        # 或者理解为for循环中的那个if的break（所有都没有触发if之后会触发else）
+        else:
+            self.modal(level="warn", msg="无法找到上个月份的计算数据，请上传上个月份计算后的数据")
+            return
         # 发起计算任务
         params = {
             "stage": "start_cal",
+            "last_month_template_path": os.path.join(IMPORTANT_PATH, last_month_result[0]),
             "upload_file_path_map": self.upload_file_path_map,
-            "target_year": self.target_year_text.text(),
-            "omit_baoxian_code": [i.strip() for i in self.omit_baoxian_code_text.text().split(",")],
+            "target_year": year_month_obj.year,
+            "target_file_path": os.path.join(IMPORTANT_PATH, self.this_file_name),
+            "omit_baoxian_code_list": [i.strip() for i in self.omit_baoxian_code_text.text().split(",")],
         }
         self.worker.add_params(params).start()
+
+        # 保存当前的配置：忽略的保险代码
+        self.config["omit_baoxian_code"] = self.omit_baoxian_code_text.text()
+        with open(CONFIG_PATH, "w") as f:
+            f.write(json.dumps(self.config))
 
         # 增加loading tip
         self.tip_loading.set_titles(["计算.", "计算..", "计算..."]).show()
@@ -230,13 +264,11 @@ v1.1.4 完成该场景
 
     def custom_after_all_cal(self, result):
         self.tip_loading.hide()
-        self.finish_file_name = result.get("finish_file_name")
-        file = self.finish_file_name
-        index = self.file_list_wrapper.get_text_by_index(file)
-        self.file_list_wrapper.set_text_by_index(index, "✅" + file)
+        index = self.file_list_wrapper.get_text_by_index(self.this_file_name)
+        self.file_list_wrapper.set_text_by_index(index, "✅" + self.this_file_name)
 
     def download_file_action(self):
-        if self.finish_file_name is None:
+        if self.this_file_name is None:
             self.modal(level="warn", msg="请先计算")
             return
         selected = self.upload_list_wrapper.get_selected_text()

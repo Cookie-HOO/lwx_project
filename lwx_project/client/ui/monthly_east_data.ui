@@ -104,12 +104,12 @@
       <item>
        <widget class="QLabel" name="label">
         <property name="text">
-         <string>目标年份：</string>
+         <string>目标年-月：</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QLineEdit" name="target_year_text">
+       <widget class="QLineEdit" name="target_year_month_text">
         <property name="text">
          <string/>
         </property>

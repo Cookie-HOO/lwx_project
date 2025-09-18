@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import QMainWindow
 from lwx_project.client.const import UI_PATH, STATIC_FILE_PATH
 from lwx_project.client.scene.daily_baoxian_client import MyDailyBaoxianClient
 from lwx_project.client.scene.monthly_communication_data_client import MyMonthlyCommunicationDataClient
-from lwx_project.client.scene.monthly_east_data import MyMonthlyEastDataClient
+from lwx_project.client.scene.monthly_east_data_client import MyMonthlyEastDataClient
 
 
 # from lwx_project.client.scene.activity_rate import MyActivityRateClient

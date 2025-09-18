@@ -94,9 +94,10 @@ from lwx_project.scene.monthly_east_data.const import TEMPLATE_PATH, DETAIL_PATH
 from lwx_project.utils.calculator import num_or_na_or_zero
 
 
-def baoxian_order_code_groupby(path, omit_baoxian_code_list, year, connection_name_path, connection_name_code_path):
+def baoxian_order_code_groupby(path, last_month_template_path, omit_baoxian_code_list, year, connection_name_path, connection_name_code_path):
     """
     path: 团险数据的路径
+    last_month_template_path: 上月的模板文件路径
     omit_baoxian_code_list: 要忽略的险种列表
     year: 年
     connection_name_path: 关联方名称的件路径
@@ -110,7 +111,7 @@ def baoxian_order_code_groupby(path, omit_baoxian_code_list, year, connection_na
 
     # 3. 第三步：准备其他数据
     max_abc_num, max_other_num, connection_name, connection_name_code = prepare_data(
-        connection_name_path, connection_name_code_path
+        last_month_template_path, connection_name_path, connection_name_code_path
     )
 
     # 4. 第四步：针对第二步得到的两部分数据，groupby {保险单号} 进行汇总（配合第三部分得到的辅助数据）
@@ -172,22 +173,23 @@ def further_filter(df, connection_name_path):
     return df_abc, df_other
 
 
-def prepare_data(connection_name_path, connection_name_code_path):
+def prepare_data(last_month_template_path, connection_name_path, connection_name_code_path):
     """
     准备其他数据
+    :param last_month_template_path: 上月的模板文件路径
     :param connection_name_path: 关联方名称文件路径
     :param connection_name_code_path: 关联方名称和代码的映射文件路径
     :return: (max_abc_num, max_other_num, connection_name, connection_name_code)
     """
     # 1. 读取TEMPLATE_PATH中的“*交易协议名称”列，获取最大数字
     # 检查模板文件是否存在
-    if not os.path.exists(TEMPLATE_PATH):
+    if not os.path.exists(last_month_template_path):
         # 如果文件不存在，返回默认值
         max_abc_num = 0
         max_other_num = 0
     else:
         # 读取模板文件
-        template_df = pd.read_excel(TEMPLATE_PATH)
+        template_df = pd.read_excel(last_month_template_path)
         
         # 检查是否有“*交易协议名称”列
         if '*交易协议名称' in template_df.columns:
@@ -308,6 +310,7 @@ if __name__ == '__main__':
     connection_name_code_path_ = ""
     baoxian_order_code_groupby(
         path_,
+        TEMPLATE_PATH,
         omit_baoxian_code_list_,
         year_,
         connection_name_path_,

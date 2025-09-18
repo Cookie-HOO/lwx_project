@@ -164,12 +164,3 @@ class TimeObj:
     @property
     def is_first_day_of_base_month(self) -> bool:
         return self.year == self.base_time_obj.year and self.month == self.base_time_obj.month and self.day == 1
-
-    @property
-    def year_of_last_month(self) -> int:
-        """
-        上个月对应的年份
-        """
-        if self.month == 12:
-            return self.year - 1
-        return self.year
