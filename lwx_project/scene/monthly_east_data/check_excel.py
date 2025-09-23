@@ -11,6 +11,13 @@ from lwx_project.utils.file import copy_file
 
 
 def check_excels(file_path_list) -> (bool, str, dict):
+    """校验后返回三个文件的路径
+    1. 核心团险数据：上传的文件中必须有
+    2. 名称：如果important没有，那么必须上传
+    3. 名称代码映射：如果important没有，那么必须上传
+    校验后，一定会返回这三个文件的路径
+    如果后两个文件不在important路径中，那么必须上传，上传后会复制到important路径中
+    """
     # 1. 个数校验，不能超过3个文件
     if len(file_path_list) > 3 or len(file_path_list) == 0:
         return False, "最多支持3个文件：核心团险数据、名称、名称代码映射", {}

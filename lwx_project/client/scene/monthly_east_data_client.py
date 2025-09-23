@@ -230,7 +230,7 @@ v1.1.4 完成该场景
         # 上面for的任务是寻找包含上个月内容的文件，这里的else就是如果找不到（没有触发break）
         # 或者理解为for循环中的那个if的break（所有都没有触发if之后会触发else）
         else:
-            self.modal(level="warn", msg="无法找到上个月份的计算数据，请上传上个月份计算后的数据")
+            self.modal(level="warn", msg="无法找到上个月份的计算数据，请上传上个月份计算后的数据（手动添加到对应的important目录中）")
             return
         # 发起计算任务
         params = {

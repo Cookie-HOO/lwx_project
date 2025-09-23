@@ -1,6 +1,6 @@
 """
 第一步：基础筛选：对于path对应的excel表，进行基础筛选
-    1. {团/卡单业务} 筛选 团体保单团单
+    1. {团/卡单业务} 筛选 团体保单
     2. 过滤掉 {险种代码}  等于 7824、2801、7854【需要配置】的行
         在这个函数中，需要传入一个列表，列表中的元素是要忽略的险种代码
     3. {保全号} 筛选 为空的行
@@ -8,7 +8,7 @@
 
 第二步：进一步筛选得到以下两种类型的数据：
     1. 得到农行的关联交易数据
-        1. {客户名称} 包含“中国农业银行股份有限公司”
+        1. {团体客户名称} 包含“中国农业银行股份有限公司”
     
     2. 得到其他关联方的交易数据
         1. 在 connection_name_path 存储的excel 中，读取第一列（没有列名，直接是所有的名称
@@ -51,7 +51,7 @@
         固定值：“有效”
     保单号：
         同{*合同编号}
-    *团个性质
+    团个性质
         固定值：“团体保单”
     *合同签订日期
         {承保日期}列 取第一个
@@ -65,7 +65,7 @@
         三列值都是：{保费收入/支出(不含税)}列的数字求和
     *定价政策
         固定值：“市场公允价格”
-    交易概述	*交易标的：这两列一样
+    *交易概述	*交易标的：这两列一样
         groupby之后，取 {业务性质}列的第一行
             如果是 “农行赠险业务”，这里写“为客户投保的团险产品”
             如果是 “农行员福业务”，这里写“为员工投保的团险产品”
@@ -132,8 +132,8 @@ def base_filter(path, omit_baoxian_code_list):
     # 读取Excel文件
     df = pd.read_excel(path)
     
-    # 1. 筛选 {团/卡单业务} 等于 团体保单团单 的行
-    df = df[df['团/卡单业务'] == '团体保单团单']
+    # 1. 筛选 {团/卡单业务} 等于 团体保单 的行
+    df = df[df['团/卡单业务'] == '团体保单']
     
     # 2. 过滤掉 {险种代码} 等于 忽略列表中的行
     # 确保险种代码是字符串类型后再进行过滤
@@ -157,8 +157,8 @@ def further_filter(df, connection_name_path):
     :return: (df_abc, df_other) 农行数据和其他关联方数据
     """
     # 1. 得到农行的关联交易数据
-    # 筛选 {客户名称} 包含“中国农业银行股份有限公司” 的行
-    df_abc = df[df['客户名称'].str.contains('中国农业银行股份有限公司', na=False)]
+    # 筛选 {团体客户名称} 包含“中国农业银行股份有限公司” 的行
+    df_abc = df[df['团体客户名称'].str.contains('中国农业银行股份有限公司', na=False)]
     
     # 2. 得到其他关联方的交易数据
     # 读取关联方名称文件的第一列（没有列名）
@@ -189,7 +189,7 @@ def prepare_data(last_month_template_path, connection_name_path, connection_name
         max_other_num = 0
     else:
         # 读取模板文件
-        template_df = pd.read_excel(last_month_template_path)
+        template_df = pd.read_excel(last_month_template_path,  engine='openpyxl', sheet_name="关联交易协议实体")
         
         # 检查是否有“*交易协议名称”列
         if '*交易协议名称' in template_df.columns:
@@ -219,9 +219,9 @@ def prepare_data(last_month_template_path, connection_name_path, connection_name
     # 2. 读取关联方名称文件的第一列
     connection_name_df = pd.read_excel(connection_name_path, header=None)
     connection_name = [str(name) for name in connection_name_df.iloc[:, 0].tolist()]
-    
+
     # 3. 读取关联方名称和代码的映射文件
-    connection_name_code_df = pd.read_excel(connection_name_code_path)
+    connection_name_code_df = pd.read_excel(connection_name_code_path, header=None)
     # 创建映射字典，确保键是字符串类型
     connection_name_code = {str(row[connection_name_code_df.columns[0]]): str(row[connection_name_code_df.columns[1]]) 
                             for _, row in connection_name_code_df.iterrows()}
@@ -269,7 +269,7 @@ def groupby_insurance_num(df_abc, df_other, max_abc_num, max_other_num, connecti
                 '*合同编号': group_name,
                 '*合同状态': '有效',
                 '保单号': group_name,
-                '*团个性质': '团体保单',
+                '团个性质': '团体保单',
                 '*合同签订日期': first_row['承保日期'],
                 '*协议业务起始日期': first_row['日期'],
                 '协议业务结束日期': '',
@@ -278,7 +278,7 @@ def groupby_insurance_num(df_abc, df_other, max_abc_num, max_other_num, connecti
                 '*交易金额（本位币）': premium_sum,
                 '*交易价格': premium_sum,
                 '*定价政策': '市场公允价格',
-                '交易概述': '为客户投保的团险产品' if first_row['业务性质'] == '农行赠险业务' else '为员工投保的团险产品',
+                '*交易概述': '为客户投保的团险产品' if first_row['业务性质'] == '农行赠险业务' else '为员工投保的团险产品',
                 '*交易标的': '为客户投保的团险产品' if first_row['业务性质'] == '农行赠险业务' else '为员工投保的团险产品',
                 '*单笔关联交易类型': '重大关联交易' if is_abc else '一般关联交易',
                 '达到重大关联交易的情形': '单笔达到',
