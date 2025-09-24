@@ -68,7 +68,7 @@ class MyMonthlyCommunicationDataClient(WindowWithMainWorker):
 上传多个核心团险数据和内勤外勤人员统计，生成同业交流数据汇总
 1. 上传多个核心团险数据
 2. 根据分公司做groupby，计算各种险种的金额
-3. 和important中之前计算的结果
+3. 和important中之前计算的结果进行合并
 每个月做一次
 
 =========== Important文件 ===========
@@ -88,6 +88,7 @@ class MyMonthlyCommunicationDataClient(WindowWithMainWorker):
 1. 支持多个核心团险数据excel（根据列的情况自动识别是哪一个月的）
 2. 每次执行会保存这次执行的配置
 3. 下载文件时需要指定某一个月的汇总结果进行下载
+4. 在important目录下，按照年份进行文件夹分类管理
     """
 
     release_info_text = """
@@ -272,11 +273,19 @@ v1.1.3:
             "code_rules_dict": code_rules_dict,
         }
         self.worker.add_params(params).start()
+
+        # 保存这次跑的配置
+        self.config["baoxian_code_rule"] = code_rules_dict
+        with open(CONFIG_PATH, "w") as f:
+            f.write(json.dumps(self.config))
+
+        # 记录开始时间
         self.last_run_time = time.time()
         self.start_run_time = self.last_run_time
 
         # 增加loading tip
         self.tip_loading.set_titles(["计算.", "计算..", "计算..."]).show()
+
     def custom_after_one_cal(self, result):
         self.done_num += 1
         month = result.get("month")
@@ -335,7 +344,7 @@ v1.1.3:
             body="",
             attachments=attachments
         )
-        self.modal(level="tip", count_down=1, msg="✅发送成功(2秒后关闭)")
+        self.modal(level="tip", count_down=2, msg="✅发送成功(2秒后关闭)")
 
     def reset_all_action(self):
         self.upload_list_wrapper.clear()  # 上传的list
