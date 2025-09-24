@@ -44,8 +44,8 @@ if __name__ == '__main__':
     last_month_template_path = os.path.join(IMPORTANT_PATH, "保险业务和其他类关联交易协议模板（202506农行员福+其他关联方）.xlsx")
     upload_file_path_map = {
         "核心团险数据": os.path.join(IMPORTANT_PATH, "6月关联交易数据.xlsx"),
-        "名称": os.path.join(IMPORTANT_PATH, NAME_FILE),
-        "名称代码映射": os.path.join(IMPORTANT_PATH, NAME_CODE_FILE),
+        "名称": NAME_FILE_PATH,
+        "名称代码映射": NAME_CODE_FILE_PATH,
     }
     target_year = "2025"
     target_file_path = os.path.join(IMPORTANT_PATH, "保险业务和其他类关联交易协议模板（202507农行员福+其他关联方）.xlsx")

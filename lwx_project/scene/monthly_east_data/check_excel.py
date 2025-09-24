@@ -6,7 +6,7 @@ import os
 
 import pandas as pd
 
-from lwx_project.scene.monthly_east_data.const import NAME_FILE, IMPORTANT_PATH, NAME_CODE_FILE
+from lwx_project.scene.monthly_east_data.const import NAME_FILE_PATH, NAME_CODE_FILE_PATH
 from lwx_project.utils.file import copy_file
 
 
@@ -22,8 +22,8 @@ def check_excels(file_path_list) -> (bool, str, dict):
     if len(file_path_list) > 3 or len(file_path_list) == 0:
         return False, "最多支持3个文件：核心团险数据、名称、名称代码映射", {}
 
-    need_name_table = NAME_FILE not in os.listdir(IMPORTANT_PATH)
-    need_name_code_table = NAME_CODE_FILE not in os.listdir(IMPORTANT_PATH)
+    need_name_table = not os.path.exists(NAME_FILE_PATH)
+    need_name_code_table = not os.path.exists(NAME_CODE_FILE_PATH)
 
     # 2. 根据列数判断类型，总共三类
     core_tuanxian_table = []
@@ -46,12 +46,12 @@ def check_excels(file_path_list) -> (bool, str, dict):
 
     # 3. 把上传的配置表复制到important路径下
     if name_file:
-        copy_file(name_file[0], os.path.join(IMPORTANT_PATH, NAME_FILE))
+        copy_file(name_file[0], NAME_FILE_PATH)
     if name_code_file:
-        copy_file(name_code_file[0], os.path.join(IMPORTANT_PATH, NAME_CODE_FILE))
-    return True, {
+        copy_file(name_code_file[0], NAME_CODE_FILE_PATH)
+    return True, "", {
         "核心团险数据": core_tuanxian_table[0],
-        "名称": NAME_FILE,
-        "名称代码映射": NAME_CODE_FILE,
+        "名称": NAME_FILE_PATH,
+        "名称代码映射": NAME_CODE_FILE_PATH,
     }
 

@@ -1,6 +1,5 @@
 import json
 import os
-import time
 
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSignal
@@ -8,14 +7,12 @@ from PyQt5.QtCore import pyqtSignal
 from lwx_project.client.base import BaseWorker, WindowWithMainWorker
 from lwx_project.client.const import UI_PATH
 from lwx_project.client.utils.list_widget import ListWidgetWrapper
-from lwx_project.client.utils.table_widget import TableWidgetWrapper
 from lwx_project.scene.monthly_east_data.check_excel import check_excels
 from lwx_project.scene.monthly_east_data.const import CONFIG_PATH, IMPORTANT_PATH, TEMPLATE_FILE_NAME_PREFIX, \
     TEMPLATE_FILE_NAME_SUFFIX
 from lwx_project.scene.monthly_east_data.main import cal_and_merge
-from lwx_project.utils.file import copy_file, get_file_name_with_extension
+from lwx_project.utils.file import copy_file
 from lwx_project.utils.mail import send_mail
-from lwx_project.utils.time_obj import TimeObj
 from lwx_project.utils.year_month_obj import YearMonth
 
 
@@ -44,6 +41,7 @@ class Worker(BaseWorker):
 
 
         elif stage == "start_cal":
+            self.refresh_signal.emit("计算中...")
             last_month_template_path: str = self.get_param("last_month_template_path")
             upload_file_path_map: dict = self.get_param("upload_file_path_map")
             target_year: str = self.get_param("target_year")
@@ -70,16 +68,25 @@ class MyMonthlyEastDataClient(WindowWithMainWorker):
 
     help_info_text = """
 =========== 场景描述 ===========
-上传核心团险数据表和关联方名称以及名称代码表，计算
+上传核心团险数据表（必须）和关联方名称以及名称代码表（后两个可选）
+❗上传文件请确认忽略的险种代码以及目标年-月，确认好再上传文件
+程序会进行以下操作
 1. 农行和其他关联方的数据
 2. 根据保险单号做groupby，的到其他列
 3. 和important中之前计算的结果进行合并
 每个月做一次
 
 =========== Important文件 ===========
-❗📗保险业务和其他类关联交易协议模板.xlsx
+❗📗模板.xlsx
     保存内容模板，每次需要复制填数
-    注意生成的文件格式：保险业务和其他类关联交易协议模板（202502农行员福+其他关联方）.xlsx
+
+❗📗其他关联方名称.xlsx
+    上传的文件中如果有：只有一列的excel，会覆盖这个文件（没有列名）
+    important路径下如果没有此文件，必须上传
+    
+❗📗其他关联方名称代码映射.xlsx
+    上传的文件中如果有：只有两列的excel，会覆盖这个文件（没有列名）
+    important路径下如果没有此文件，必须上传
 
 ❗🔧config.json
     使用方式：使用过程中的配置文件，自动记录，无需手动管理
@@ -204,9 +211,13 @@ v1.1.4 完成该场景
         year_month_obj = YearMonth.new_from_str(self.target_year_month_text.text())
         file_list = [f for f in os.listdir(IMPORTANT_PATH) if f.startswith(TEMPLATE_FILE_NAME_PREFIX)]
         self.this_file_name = TEMPLATE_FILE_NAME_PREFIX + year_month_obj.str_with_only_number + TEMPLATE_FILE_NAME_SUFFIX
-
-        self.upload_list_wrapper.fill_data_with_color(
-            file_list + [self.this_file_name]
+        all_list = []
+        for f in file_list + [self.this_file_name]:
+            if f not in all_list:
+                all_list.append(f)
+        done_f, this_f = all_list[:-1], all_list[-1]
+        self.file_list_wrapper.fill_data_with_color(
+            ["✅" + f for f in done_f] + [this_f]
         )
         self.upload_file_path_map = upload_file_path_map
 
@@ -255,7 +266,7 @@ v1.1.4 完成该场景
         pass
     #     self.done_num += 1
     #     month = result.get("month")
-    #     self.upload_list_wrapper.set_text_by_index(month - 1,
+    #     self.file_list_wrapper.set_text_by_index(month - 1,
     #                                                f"{CALED_FILE.format(month=month)}（{round(time.time() - self.last_run_time, 2)}s）")
     #     need_cal = len(self.upload_info.upload_tuanxian_month_dict)
     #     new_text = f"当前年份：{self.upload_info.year}，汇总计算 {self.done_num}/{need_cal}个月度数据，平均耗时{round((time.time() - self.start_run_time) / self.done_num, 2)}s"
@@ -264,36 +275,40 @@ v1.1.4 完成该场景
 
     def custom_after_all_cal(self, result):
         self.tip_loading.hide()
-        index = self.file_list_wrapper.get_text_by_index(self.this_file_name)
+        index = self.file_list_wrapper.get_index_by_text(self.this_file_name)
+        if index is None:
+            raise ValueError(f"{self.this_file_name} 在list中不存在")
         self.file_list_wrapper.set_text_by_index(index, "✅" + self.this_file_name)
 
     def download_file_action(self):
         if self.this_file_name is None:
             self.modal(level="warn", msg="请先计算")
             return
-        selected = self.upload_list_wrapper.get_selected_text()
+        selected = self.file_list_wrapper.get_selected_text()
         if selected:
             file = selected[0]
             if "✅" not in file:
                 self.modal(level="warn", msg="文件未计算完成，无法下载")
                 return
         else:
-            file = self.upload_list_wrapper.get_text_by_index(-1)
+            file = self.file_list_wrapper.get_text_by_index(-1)
         file = file.strip("✅")
         file_path = os.path.join(IMPORTANT_PATH, file)
         target_file_path = self.download_file_modal(file)
+        if not target_file_path:
+            return
         copy_file(file_path, target_file_path)
         self.modal(level="info", msg="✅下载成功")
 
     def send_file_action(self):
-        selected = self.upload_list_wrapper.get_selected_text()
+        selected = self.file_list_wrapper.get_selected_text()
         if selected:
             file = selected[0]
             if "✅" not in file:
                 self.modal(level="warn", msg="文件未计算完成，无法发送")
                 return
         else:
-            file = self.upload_list_wrapper.get_text_by_index(-1)
+            file = self.file_list_wrapper.get_text_by_index(-1)
         file = file.strip("✅")
         file_path = os.path.join(IMPORTANT_PATH, file)
 
@@ -318,7 +333,7 @@ v1.1.4 完成该场景
         self.file_list_wrapper.clear()  # 上传的list
 
         self.upload_file_path_map = None  # 上传的结果 dict，{"核心团险数据": "", "名称": "", "名称代码映射": ""}
-        self.finish_file_name = None  # 计算的结果文件名
+        self.this_file_name = None  # 计算的结果文件名
 
         self.modal("info", title="Success", msg="重置成功")
 

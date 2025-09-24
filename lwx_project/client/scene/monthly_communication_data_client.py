@@ -88,6 +88,7 @@ class MyMonthlyCommunicationDataClient(WindowWithMainWorker):
 1. 支持多个核心团险数据excel（根据列的情况自动识别是哪一个月的）
 2. 每次执行会保存这次执行的配置
 3. 下载文件时需要指定某一个月的汇总结果进行下载
+4. 在important目录下，按照年份进行文件夹分类管理
     """
 
     release_info_text = """

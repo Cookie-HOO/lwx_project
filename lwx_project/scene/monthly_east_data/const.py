@@ -11,6 +11,6 @@ TEMPLATE_FILE_NAME_PREFIX = "保险业务和其他类关联交易协议模板（
 TEMPLATE_FILE_NAME_SUFFIX = "农行员福+其他关联方）.xlsx"
 TEMPLATE_SHEET_NAME = "关联交易协议实体"
 
-NAME_FILE = "其他关联方名称.xlsx"
-NAME_CODE_FILE = "其他关联方名称代码映射.xlsx"
+NAME_FILE_PATH = os.path.join(IMPORTANT_PATH, "其他关联方名称.xlsx")
+NAME_CODE_FILE_PATH = os.path.join(IMPORTANT_PATH, "其他关联方名称代码映射.xlsx")
 
