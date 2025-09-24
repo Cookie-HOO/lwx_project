@@ -172,6 +172,7 @@ v1.1.4 完成该场景
         self.reset_button.clicked.connect(self.reset_all_action)
         # 展示上传文件结果
         self.file_list_wrapper = ListWidgetWrapper(self.file_list)
+        self.upload_info_text.setText(f"将计算时间：--（如需更改时间，请重置）")
 
         self.upload_file_path_map = None  # 上传的结果 dict，{"核心团险数据": "", "名称": "", "名称代码映射": ""}
         self.this_file_name = None  # 这次需要计算出来的文件名（基于模板format年月信息的）
@@ -206,6 +207,10 @@ v1.1.4 完成该场景
         if not is_success:
             self.modal(level="warn", msg=error_msg)
             return
+
+        # 禁止修改日期了
+        self.target_year_month_text.setDisabled(True)
+        self.upload_info_text.setText(f"将计算时间：{self.target_year_month_text.text()}（如需更改时间，请重置）")
 
         # 拼接展示内容
         year_month_obj = YearMonth.new_from_str(self.target_year_month_text.text())
@@ -334,6 +339,7 @@ v1.1.4 完成该场景
 
         self.upload_file_path_map = None  # 上传的结果 dict，{"核心团险数据": "", "名称": "", "名称代码映射": ""}
         self.this_file_name = None  # 计算的结果文件名
-
+        self.self.target_year_month_text.setDisabled(False)
+        self.upload_info_text.setText(f"将计算时间：--（如需更改时间，请重置）")
         self.modal("info", title="Success", msg="重置成功")
 
