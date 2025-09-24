@@ -227,8 +227,12 @@ v1.1.3:
         self.init_browser()  # 初始化上次的执行路径和类型
 
         # 搜索保险的起止日期
-        self.baoxian_start_date_wrapper = DateEditWidgetWrapper(self.baoxian_start_date, init_date=TimeObj() - 1)
-        self.baoxian_end_date_wrapper = DateEditWidgetWrapper(self.baoxian_end_date, init_date=TimeObj() - 1)
+        today = TimeObj()
+        self.baoxian_end_date_wrapper = DateEditWidgetWrapper(self.baoxian_end_date, init_date=today - 1)
+        if today.weekday == "周一":  # 需要从上周五开始做到昨天
+            self.baoxian_start_date_wrapper = DateEditWidgetWrapper(self.baoxian_start_date, init_date=today - 3)  # -3是上周五
+        else:
+            self.baoxian_start_date_wrapper = DateEditWidgetWrapper(self.baoxian_start_date, init_date=today - 1)
 
         # 搜索保险的按钮和容器
         self.search_button.clicked.connect(self.search_baoxian)
@@ -281,8 +285,19 @@ v1.1.3:
 
     # 核心的入口函数
     def search_baoxian(self):
-        # 第一个网站搜索保险
-        check_yes = self.modal(level="check_yes", msg=f"继续将关闭所有{self.browser_selector.currentText()}浏览器，请确保所有浏览器上的工作已保存")
+        # 搜索保险
+        start_search_date_obj = self.baoxian_start_date_wrapper.get()
+        end_search_date_obj = self.baoxian_end_date_wrapper.get()
+        if start_search_date_obj > end_search_date_obj:
+            self.modal(level="warn", msg="开始日期不能大于结束日期")
+            return
+        if start_search_date_obj == end_search_date_obj and start_search_date_obj == (TimeObj()-1):
+            msg = "昨天"
+        elif TimeObj().weekday=="周一" and (start_search_date_obj + 3 == end_search_date_obj):
+            msg = "上周五到昨天"
+        else:
+            msg = f"{start_search_date_obj.date_str}到{end_search_date_obj.date_str}，共{end_search_date_obj - start_search_date_obj + 1}天"
+        check_yes = self.modal(level="check_yes", msg=f"将搜索{msg}的招标信息\n\n继续将关闭所有{self.browser_selector.currentText()}浏览器，请确保所有浏览器上的工作已保存")
         if not check_yes:
             return
         # 保存配置
@@ -375,6 +390,7 @@ v1.1.3:
                 "value": item.url,
             },
         ])
+        self.collected_baoxian_table_wrapper.set_row_height(-1, 50)
         #
         # self.collected_baoxian_table_wrapper.add_row_with_color([
         #     item.province,

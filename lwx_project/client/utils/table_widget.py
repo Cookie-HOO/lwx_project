@@ -77,6 +77,17 @@ class TableWidgetWrapper:
         self.table_widget.setColumnWidth(col_index, width)
         return self
 
+    def set_row_height(self, row_index: int, height: int):
+        # 将负数索引转换为正数
+        if row_index < 0:
+            row_count = self.table_widget.rowCount()
+            row_index = row_count + row_index
+            # 检查是否越界
+            if row_index < 0:
+                raise IndexError("row index out of range")
+        self.table_widget.setRowHeight(row_index, height)
+        return self
+
     def get_cell_value(self, row: int, column: int) -> typing.Optional[str]:
         # 尝试获取QTableWidgetItem（普通文本）
         item = self.table_widget.item(row, column)

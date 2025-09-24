@@ -69,6 +69,14 @@ class BaoxianItem:
         province, key_city = find_city_for_buyer_name(self.province,self.buyer_name,self.title)
         self.key_city = key_city
         self.province = self.province or province
+
+        # 项目流标
+        if self.detail.replace("\n", "").replace(" ", "") == "经评审，无有效投标人，本项目流标。":
+            self.success = False
+            self.not_available_reason = "项目流标"
+            self.buyer_name = "项目流标"
+            self.get_bid_until = "项目流标"
+            self.budget = "项目流标"
         return self
 
     # 正则匹配detail的工具函数
@@ -147,7 +155,7 @@ class BaoxianItem:
                 pass
         except ValueError:
             if len(parsed_budget.split("\n")) > 2 and len(parsed_budget) > 50:  # 是一个长字符串
-                return ""
+                return origin_parsed_budget
             return origin_parsed_budget  # 解析失败返回最原始的内容
         return parsed_budget
 
@@ -167,9 +175,48 @@ class BaoxianItem:
             "采\s*购\s*预\s*算\s*价\s*为?\s*(.*?\d.*?)[\n。，]"
         ]
         for pattern in patterns:
+            # 对于 gov 网站来说，模式相对固定，但是找到的内容可能有冗余，需要进一步操作
             result = self.get_budget_with_re(pattern, text=self.detail)
             if result:
-                return result
+                if result.isdigit():
+                    return result
+                num = self.find_budget_by_number([""], result)
+                if num:
+                    return num
+        return ""
+
+    def find_budget_by_number(self, keywords, text):
+        budget = ""
+        is_wan = False  # 是否是万元
+        is_precent = False
+        threshold = 20
+        stop = False
+        for keyword in keywords:
+            if stop:
+                break
+            position = text.find(keyword)
+            if position == -1:
+                continue
+            stop = True
+            target_text = text[position: position + threshold + len(keyword)]
+            for pointer_text in target_text:
+                if pointer_text.isdigit() or pointer_text == "." or pointer_text == ",":
+                    budget += pointer_text
+                elif pointer_text == "万":
+                    is_wan = True
+                    break
+                elif pointer_text == "%":
+                    is_precent = True
+                    break
+                elif pointer_text == "元":
+                    is_wan = False
+                    break
+        if stop and budget and not is_precent:
+            if is_wan:
+                parsed_budget = str(float(budget.replace(",", "")))
+            else:
+                parsed_budget = str(round(float(budget.replace(",", "")) / 10000, 4))
+            return parsed_budget
         return ""
 
     def get_default_get_bid_until(self):
@@ -329,15 +376,15 @@ class Worker:
         """
         检查所有条目，给符合条件的设置属性 default_available
         1. 省市名称符合要求：以下22个之一
-            北京、重庆、江苏、黑龙江、浙江、上海、湖南、安徽、河北、山东、江西、福建、厦门、广东、四川、辽宁、湖北、陕西、山西、宁波、广西、河南
+            北京、重庆、江苏、黑龙江、浙江、上海、湖南、安徽、河北、山东、江西、福建、厦门、广东、四川、辽宁、湖北、陕西、山西、宁波、广西、河南、大连、青岛、深圳
         2. 标题中不能含有「责任险」、「第三者意外险」 字样
         """
-        target_province_list = "北京、重庆、江苏、黑龙江、浙江、上海、湖南、安徽、河北、山东、江西、福建、厦门、广东、四川、辽宁、湖北、陕西、山西、宁波、广西、河南"
-        omit_baoxian_list = ["责任险", "第三者意外险"]
+        target_province_list = "北京、重庆、江苏、黑龙江、浙江、上海、湖南、安徽、河北、山东、江西、福建、厦门、广东、四川、辽宁、湖北、陕西、山西、宁波、广西、河南、大连、青岛、深圳"
+        omit_baoxian_list = ["责任险", "责任保险", "第三者意外险"]
         # 1. 省市名称符合条件
         if baoxian_item.province not in target_province_list:
             baoxian_item.default_available = False
-            baoxian_item.not_available_reason = f"{baoxian_item.province} 不属于22个目标省市之一"
+            baoxian_item.not_available_reason = f"{baoxian_item.province} 不属于24个目标省市之一"
             return False
 
         # 2. 没有出现特殊信息

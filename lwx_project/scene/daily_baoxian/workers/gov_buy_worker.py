@@ -26,7 +26,7 @@ BID_TYPE_MAPPING = {
 PLATFORM = "中国政府采购网"
 
 class GovBuyBaoxianItem(BaoxianItem):
-    def __init__(self, title, url, bref, tags_text, bid_type):
+    def __init__(self, title, url, bref=None, tags_text=None, bid_type=None):
         """
 url:
 http://www.ccgp.gov.cn/cggg/dfgg/gkzb/202507/t20250708_24923229.htm
@@ -43,8 +43,11 @@ tags_text:
         """
         super().__init__(platform=PLATFORM, title=title, bid_type=bid_type)
         self.url = url
-        self.bref = bref
+        self.bref = bref or ""
         # self.tags_list = tags_text.split("|")
+
+        if tags_text is None:
+            return
         self.tags_list = [i.strip() for i in re.split("[\n|]", tags_text)]
         self._publish_date, self._buyer_name, self._proxy, self._bid_type, self._province, *_ = self.tags_list
         self._buyer_name = self._buyer_name.replace("采购人：", "")
