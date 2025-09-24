@@ -38,9 +38,9 @@ def check_excels(file_path_list) -> (bool, str, dict):
         else:
             core_tuanxian_table.append(file_path)
     if need_name_code_table and not name_code_file:
-        return False, "需要名称代码表，但是没有上传", {}
+        return False, f"需要名称代码表，但是没有上传\n\n请上传只有一列没有表头的其他关联方名称表", {}
     if need_name_table and not name_file:
-        return False, "需要名称表，但是没有上传", {}
+        return False, f"需要名称表，但是没有上传\n\n请上传只有两列没有表头的其他关联方名称代码映射表，第一列是名称，第二列是代码", {}
     if not core_tuanxian_table:
         return False, "没有上传核心团险表", {}
 

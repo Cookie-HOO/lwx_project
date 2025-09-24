@@ -10,7 +10,7 @@ from lwx_project.utils.browser import init_local_browser, close_all_browser_inst
 from playwright.sync_api import sync_playwright
 
 from lwx_project.utils.date import add_days_skip_weekends
-from lwx_project.utils.strings import is_all_chinese
+from lwx_project.utils.strings import is_all_chinese, can_convert2float
 
 
 class BaoxianItem:
@@ -178,7 +178,7 @@ class BaoxianItem:
             # 对于 gov 网站来说，模式相对固定，但是找到的内容可能有冗余，需要进一步操作
             result = self.get_budget_with_re(pattern, text=self.detail)
             if result:
-                if result.isdigit():
+                if can_convert2float(result):
                     return result
                 num = self.find_budget_by_number([""], result)
                 if num:
@@ -188,30 +188,35 @@ class BaoxianItem:
     def find_budget_by_number(self, keywords, text):
         budget = ""
         is_wan = False  # 是否是万元
-        is_precent = False
-        threshold = 20
         stop = False
-        for keyword in keywords:
-            if stop:
-                break
+
+        threshold = 20
+        while_key_words = keywords[:]
+        while while_key_words and not stop:
+            # 重新刷新纪录的信息
+            budget = ""
+            is_wan = False  # 是否是万元
+            stop = False
+
+            keyword = while_key_words.pop(0)
             position = text.find(keyword)
             if position == -1:
                 continue
-            stop = True
             target_text = text[position: position + threshold + len(keyword)]
             for pointer_text in target_text:
                 if pointer_text.isdigit() or pointer_text == "." or pointer_text == ",":
                     budget += pointer_text
                 elif pointer_text == "万":
                     is_wan = True
+                    stop = True
                     break
-                elif pointer_text == "%":
-                    is_precent = True
+                elif pointer_text == "%":  # 一般是 资金来源：100%自有资金
                     break
                 elif pointer_text == "元":
                     is_wan = False
+                    stop = True
                     break
-        if stop and budget and not is_precent:
+        if stop and budget:
             if is_wan:
                 parsed_budget = str(float(budget.replace(",", "")))
             else:
@@ -384,7 +389,7 @@ class Worker:
         # 1. 省市名称符合条件
         if baoxian_item.province not in target_province_list:
             baoxian_item.default_available = False
-            baoxian_item.not_available_reason = f"{baoxian_item.province} 不属于24个目标省市之一"
+            baoxian_item.not_available_reason = f"{baoxian_item.province} 不属于25个目标省市之一"
             return False
 
         # 2. 没有出现特殊信息

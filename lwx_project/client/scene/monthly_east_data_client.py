@@ -236,7 +236,7 @@ v1.1.4 完成该场景
         last_month_result = []
         for file in self.file_list_wrapper.get_data_as_list():
             if year_month_obj.sub_one_month().str_with_only_number in file:
-                last_month_result.append(file)
+                last_month_result.append(file.lstrip("✅"))
                 break
         # 上面for的任务是寻找包含上个月内容的文件，这里的else就是如果找不到（没有触发break）
         # 或者理解为for循环中的那个if的break（所有都没有触发if之后会触发else）

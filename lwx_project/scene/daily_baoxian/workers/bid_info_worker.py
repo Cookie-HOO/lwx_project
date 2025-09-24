@@ -11,7 +11,7 @@ from lwx_project.scene.daily_baoxian.vo import BaoxianItem, Worker
 from lwx_project.utils.browser import init_local_browser, click_item, close_all_browser_instances
 from playwright.sync_api import sync_playwright
 
-from lwx_project.utils.strings import dedup_lines, is_any_digits
+from lwx_project.utils.strings import dedup_lines, is_any_digits, can_convert2float
 
 PLATFORM = "中国招标投标公共服务平台"
 
@@ -58,9 +58,9 @@ class BidInfoBaoxianItem(BaoxianItem):
             self.parse_detail("招\s*标\s*人\s*[:：]\s*(.*?)\n").strip(":").strip("：").strip() or \
             self.parse_detail("采\s*购\s*人\s*信\s*息\s*[:：]?\s*名\s*称\s*[:：]?\s*(.*?)\n").strip(":").strip("：").strip() or \
             self.parse_detail("采\s*购\s*人\s*信\s*息\s*[:：]?.*?名\s*称\s*[:：]?\s*(.*?)地址").strip(":").strip("：").strip() or \
-            self.parse_detail("招\s*标\s*人\s*为[:：]?\s*(.*?)[。，]").strip(":").strip("：").strip() or \
-            self.parse_detail("采\s*购\s*人\s*为[:：]?\s*(.*?)[。，]").strip(":").strip("：").strip() or \
-            self.parse_detail("采\s*购\s*人\s*[:：]?\n\s*(.*?)[。，]", from_bottom_to_top=True).strip(":").strip("：").strip()
+            self.parse_detail("招\s*标\s*人\s*为[:：]?\s*(.*?)[\n。，]").strip(":").strip("：").strip() or \
+            self.parse_detail("采\s*购\s*人\s*为[:：]?\s*(.*?)[\n。，]").strip(":").strip("：").strip() or \
+            self.parse_detail("采\s*购\s*人\s*[:：]?\n\s*(.*?)[\n。，]", from_bottom_to_top=True).strip(":").strip("：").strip()
         buyer_name = buyer_name.replace("\n", "")
         return buyer_name
 
@@ -179,7 +179,7 @@ class BidInfoBaoxianItem(BaoxianItem):
         for pattern in patterns:
             result = self.get_budget_with_re(pattern, text)
             if result:
-                if result.isdigit():
+                if can_convert2float(result):
                     return result
                 num = self.find_budget_by_number([""], result)
                 if num:
