@@ -106,6 +106,7 @@ class MyMonthlyEastDataClient(WindowWithMainWorker):
 3. 如果想要做2025-03的，必须保证在important目录下有2025-02的内容，文件名如下
     保险业务和其他类关联交易协议模板（202502农行员福+其他关联方）.xlsx
     开始计算前会进行检测
+4. 如果是1月不需要
     """
 
     release_info_text = """
@@ -239,19 +240,23 @@ v1.1.4 完成该场景
 
         # 检查存在上个月的计算结果
         last_month_result = []
-        for file in self.file_list_wrapper.get_data_as_list():
-            if year_month_obj.sub_one_month().str_with_only_number in file:
-                last_month_result.append(file.lstrip("✅"))
-                break
-        # 上面for的任务是寻找包含上个月内容的文件，这里的else就是如果找不到（没有触发break）
-        # 或者理解为for循环中的那个if的break（所有都没有触发if之后会触发else）
-        else:
-            self.modal(level="warn", msg="无法找到上个月份的计算数据，请上传上个月份计算后的数据（手动添加到对应的important目录中）")
-            return
+        if year_month_obj.month != 1:
+            for file in self.file_list_wrapper.get_data_as_list():
+                if year_month_obj.sub_one_month().str_with_only_number in file:
+                    last_month_result.append(file.lstrip("✅"))
+                    break
+            # 上面for的任务是寻找包含上个月内容的文件，这里的else就是如果找不到（没有触发break）
+            # 或者理解为for循环中的那个if的break（所有都没有触发if之后会触发else）
+            else:
+                self.modal(level="warn", msg="当前不是一月且无法找到上个月份的计算数据，请上传上个月份计算后的数据（手动添加到对应的important目录中）")
+                return
+        else: # 是一月，不需要上月
+            last_month_result.append("")
+
         # 发起计算任务
         params = {
             "stage": "start_cal",
-            "last_month_template_path": os.path.join(IMPORTANT_PATH, last_month_result[0]),
+            "last_month_template_path": os.path.join(IMPORTANT_PATH, last_month_result[0]) if last_month_result[0] else None,
             "upload_file_path_map": self.upload_file_path_map,
             "target_year": year_month_obj.year,
             "target_file_path": os.path.join(IMPORTANT_PATH, self.this_file_name),
@@ -339,7 +344,7 @@ v1.1.4 完成该场景
 
         self.upload_file_path_map = None  # 上传的结果 dict，{"核心团险数据": "", "名称": "", "名称代码映射": ""}
         self.this_file_name = None  # 计算的结果文件名
-        self.self.target_year_month_text.setDisabled(False)
+        self.target_year_month_text.setDisabled(False)
         self.upload_info_text.setText(f"将计算时间：--（如需更改时间，请重置）")
         self.modal("info", title="Success", msg="重置成功")
 

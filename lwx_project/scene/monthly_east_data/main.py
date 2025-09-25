@@ -38,7 +38,6 @@ def cal_and_merge(last_month_template_path: str, upload_file_path_map: dict, tar
 
 
 if __name__ == '__main__':
-    # TODO
     import os
 
     last_month_template_path = os.path.join(IMPORTANT_PATH, "保险业务和其他类关联交易协议模板（202506农行员福+其他关联方）.xlsx")

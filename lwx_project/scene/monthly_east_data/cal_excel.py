@@ -173,17 +173,58 @@ def further_filter(df, connection_name_path):
     return df_abc, df_other
 
 
+def build_connection_dict(df):
+    """ todo: 这里放到check中
+    从DataFrame构建字典，要求：
+    1. 跳过key为NaN的行
+    2. 跳过value为空（NaN或空字符串）的行
+    3. 同一个key只能对应一个非空value，否则报错
+    """
+    connection_name_code = {}
+
+    for idx, row in df.iterrows():
+        # 处理 key
+        key_raw = row[df.columns[0]]
+        if pd.isna(key_raw):
+            continue  # 跳过 key 为 NaN 的行
+        key = str(key_raw)
+
+        # 处理 value
+        value_raw = row[df.columns[1]]
+        if pd.isna(value_raw):
+            continue  # 跳过 value 为 NaN 的行
+
+        value_str = str(value_raw).strip()
+        if not value_str:  # 跳过空字符串
+            continue
+
+        # 检查是否已经存在该key
+        if key in connection_name_code:
+            # 如果已存在的值与当前值不同，则报错
+            if connection_name_code[key] != value_str:
+                raise ValueError(
+                    f"Key '{key}' 对应多个不同的值: "
+                    f"'{connection_name_code[key]}' 和 '{value_str}' "
+                    f"(行索引: {idx})"
+                )
+        else:
+            # 第一次遇到这个key，添加到字典
+            connection_name_code[key] = value_str
+
+    return connection_name_code
+
+
 def prepare_data(last_month_template_path, connection_name_path, connection_name_code_path):
     """
     准备其他数据
-    :param last_month_template_path: 上月的模板文件路径
+    :param last_month_template_path: 上月的模板文件路径，可能是None（1月份没有last）
     :param connection_name_path: 关联方名称文件路径
     :param connection_name_code_path: 关联方名称和代码的映射文件路径
     :return: (max_abc_num, max_other_num, connection_name, connection_name_code)
     """
     # 1. 读取TEMPLATE_PATH中的“*交易协议名称”列，获取最大数字
     # 检查模板文件是否存在
-    if not os.path.exists(last_month_template_path):
+    if not last_month_template_path or not os.path.exists(last_month_template_path):
         # 如果文件不存在，返回默认值
         max_abc_num = 0
         max_other_num = 0
@@ -223,9 +264,8 @@ def prepare_data(last_month_template_path, connection_name_path, connection_name
     # 3. 读取关联方名称和代码的映射文件
     connection_name_code_df = pd.read_excel(connection_name_code_path, header=None)
     # 创建映射字典，确保键是字符串类型
-    connection_name_code = {str(row[connection_name_code_df.columns[0]]): str(row[connection_name_code_df.columns[1]]) 
-                            for _, row in connection_name_code_df.iterrows()}
-    
+    connection_name_code = build_connection_dict(connection_name_code_df)
+
     return max_abc_num, max_other_num, connection_name, connection_name_code
 
 

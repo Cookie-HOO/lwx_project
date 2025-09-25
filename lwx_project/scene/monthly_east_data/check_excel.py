@@ -4,10 +4,9 @@
 """
 import os
 
-import pandas as pd
-
 from lwx_project.scene.monthly_east_data.const import NAME_FILE_PATH, NAME_CODE_FILE_PATH
 from lwx_project.utils.file import copy_file
+from lwx_project.utils.high_performance import FastExcelReader
 
 
 def check_excels(file_path_list) -> (bool, str, dict):
@@ -30,13 +29,20 @@ def check_excels(file_path_list) -> (bool, str, dict):
     name_file = []
     name_code_file = []
     for file_path in file_path_list:
-        col_length = len(pd.read_excel(file_path).columns)
-        if col_length == 1:
-            name_file.append(file_path)
-        elif col_length == 2:
-            name_code_file.append(file_path)
-        else:
-            core_tuanxian_table.append(file_path)
+        with FastExcelReader(file_path) as fe:
+            col_length = fe.get_excel_column_count(max_col_num=3)
+            if col_length == 1:
+                name_file.append(file_path)
+            elif col_length == 2:
+                name_code_file.append(file_path)
+            else:
+                core_tuanxian_table.append(file_path)
+                required_cols = ["团体客户名称", "承保日期", "日期", "业务性质"]
+                check_yes, left = fe.check_excel_row(row_num=1, required_value_list=required_cols)
+                if not check_yes:
+                    lack_cols = ", ".join(required_cols)
+                    return False, f"核心团险表缺少以下列：\n{lack_cols}", {}
+
     if need_name_code_table and not name_code_file:
         return False, f"需要名称代码表，但是没有上传\n\n请上传只有一列没有表头的其他关联方名称表", {}
     if need_name_table and not name_file:
