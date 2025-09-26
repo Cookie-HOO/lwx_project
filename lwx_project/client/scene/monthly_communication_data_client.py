@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import typing
 
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSignal
@@ -12,7 +13,7 @@ from lwx_project.client.utils.table_widget import TableWidgetWrapper
 from lwx_project.scene.monthly_communication_data.check_excel import check_excels, UploadInfo
 from lwx_project.scene.monthly_communication_data.const import CONFIG_PATH, IMPORTANT_PATH, BEFORE_CAL_FILE, CALED_FILE
 from lwx_project.scene.monthly_communication_data.main import cal_and_merge
-from lwx_project.utils.file import copy_file, get_file_name_with_extension
+from lwx_project.utils.file import copy_file, get_file_name_with_extension, open_file_or_folder
 from lwx_project.utils.mail import send_mail
 
 
@@ -42,6 +43,7 @@ class Worker(BaseWorker):
 
 
         elif stage == "start_cal":
+            self.refresh_signal.emit("计算中...")
             upload_info: UploadInfo = self.get_param("upload_info")
             code_rules_dict = self.get_param("code_rules_dict")
 
@@ -101,6 +103,10 @@ v1.1.3:
 - feat: 增加发送邮件
 - fix: 校验上传文件的问题
 - update: auth.json的路径修改
+
+v1.1.4
+- update: 双击打开文件
+- update: 执行中展示优化 🏃✅
     """
 
     def __init__(self):
@@ -165,10 +171,9 @@ v1.1.3:
         # 重置按钮
         self.reset_button.clicked.connect(self.reset_all_action)
         # 展示上传文件结果
-        self.upload_list_wrapper = ListWidgetWrapper(self.upload_list)
+        self.upload_list_wrapper = ListWidgetWrapper(self.upload_list).bind_double_click_func(self.double_click_to_open)
 
-        self.upload_info = None  # 上传的结果
-        self.result_files_map = None # 计算的结果
+        self.upload_info: typing.Optional[UploadInfo] = None  # 上传的结果
         self.done_num = 0
         self.last_run_time = None
         self.start_run_time = None
@@ -224,7 +229,7 @@ v1.1.3:
             if i in need_cal_month_list:
                 file_list.append(BEFORE_CAL_FILE.format(month=i))
             elif i in caled_month_list:
-                file_list.append(f"{get_file_name_with_extension(upload_info.important_month_dict.get(i))}")
+                file_list.append(f"✅{get_file_name_with_extension(upload_info.important_month_dict.get(i))}")
 
         self.upload_list_wrapper.fill_data_with_color(
             file_list
@@ -265,6 +270,10 @@ v1.1.3:
             "医疗基金": get_specific_rule(code_rules, 3),
             "年金险": get_specific_rule(code_rules, 4),
         }
+        # running
+        upload_tuanxian_month_dict = self.upload_info.upload_tuanxian_month_dict.keys()
+        this_index = sorted(upload_tuanxian_month_dict)[0] - 1  # 一定是从第一个月开始排的，所以算的月份-1，就是算的索引
+        self.upload_list_wrapper.set_text_by_index(this_index, f"🏃{CALED_FILE.format(month=this_index + 1)}")
 
         # 发起计算任务
         params = {
@@ -289,7 +298,8 @@ v1.1.3:
     def custom_after_one_cal(self, result):
         self.done_num += 1
         month = result.get("month")
-        self.upload_list_wrapper.set_text_by_index(month-1, f"{CALED_FILE.format(month=month)}（{round(time.time()-self.last_run_time,2)}s）")
+        self.upload_list_wrapper.set_text_by_index(month-1, f"✅{CALED_FILE.format(month=month)}\t{round(time.time()-self.last_run_time,2)}s")
+        self.upload_list_wrapper.set_text_by_index(month, f"🏃{CALED_FILE.format(month=month+1)}")
         need_cal = len(self.upload_info.upload_tuanxian_month_dict)
         new_text = f"当前年份：{self.upload_info.year}，汇总计算 {self.done_num}/{need_cal}个月度数据，平均耗时{round((time.time()-self.start_run_time)/self.done_num,2)}s"
         self.upload_info_text.setText(new_text)
@@ -298,23 +308,25 @@ v1.1.3:
 
     def custom_after_all_cal(self, result):
         self.tip_loading.hide()
-        self.result_files_map = result.get("files_map")
-        self.upload_list_wrapper.clear()
-        self.upload_list_wrapper.fill_data_with_color(
-            self.result_files_map.keys()
-        )
 
+    def double_click_to_open(self, file_name):
+        if self.upload_info is None or not file_name.startswith("✅"):
+            self.modal(level="warn", msg="请等待执行完成后再打开")
+            return
+        file_name = file_name.split("\t")[0].strip("✅").strip()
+        path = os.path.join(IMPORTANT_PATH, str(self.upload_info.year), file_name)
+        open_file_or_folder(path)
 
     def download_file_action(self):
-        if self.result_files_map is None:
-            self.modal(level="warn", msg="请先计算")
-            return
         selected = self.upload_list_wrapper.get_selected_text()
         if selected:
             file = selected[0]
         else:
             file = self.upload_list_wrapper.get_text_by_index(-1)
-        file = file.split("(")[0]
+        if file is None:
+            self.modal(level="warn", msg="没有可供下载的文件，请上传或执行")
+            return
+        file = file.split("\t")[0].strip("✅").strip()
         file_path = os.path.join(IMPORTANT_PATH, str(self.upload_info.year), file)
         target_file_path = self.download_file_modal(file)
         copy_file(file_path, target_file_path)
@@ -326,7 +338,10 @@ v1.1.3:
             file = selected[0]
         else:
             file = self.upload_list_wrapper.get_text_by_index(-1)
-        file = file.split("(")[0]
+        if file is None:
+            self.modal(level="warn", msg="没有可供下载的文件，请上传或执行")
+            return
+        file = file.split("\t")[0].strip("✅").strip()
         file_path = os.path.join(IMPORTANT_PATH, str(self.upload_info.year), file)
 
         check_yes = self.modal(level="check_yes", msg=f"即将发送：{file}", default="no")
@@ -350,7 +365,6 @@ v1.1.3:
         self.upload_list_wrapper.clear()  # 上传的list
 
         self.upload_info = None  # 上传的结果
-        self.result_files_map = None # 计算的结果
         self.done_num = 0
         self.last_run_time = None
         self.start_run_time = None

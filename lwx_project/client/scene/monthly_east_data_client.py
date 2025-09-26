@@ -13,7 +13,7 @@ from lwx_project.scene.monthly_east_data.check_excel import check_excels
 from lwx_project.scene.monthly_east_data.const import CONFIG_PATH, IMPORTANT_PATH, TEMPLATE_FILE_NAME_PREFIX, \
     TEMPLATE_FILE_NAME_SUFFIX
 from lwx_project.scene.monthly_east_data.main import cal_and_merge
-from lwx_project.utils.file import copy_file
+from lwx_project.utils.file import copy_file, open_file_or_folder
 from lwx_project.utils.mail import send_mail
 from lwx_project.utils.year_month_obj import YearMonth
 
@@ -164,7 +164,7 @@ v1.1.4 完成该场景
         # 重置按钮
         self.reset_button.clicked.connect(self.reset_all_action)
         # 展示上传文件结果
-        self.file_list_wrapper = ListWidgetWrapper(self.file_list)
+        self.file_list_wrapper = ListWidgetWrapper(self.file_list).bind_double_click_func(self.double_click_to_open)
 
         # 初始化信息：会被重置
         self.file_list_wrapper.clear()  # 上传的list
@@ -303,7 +303,7 @@ v1.1.4 完成该场景
         index = all_f.index(target_file_name)
         self.file_list_wrapper.set_text_by_index(
             index,
-            "✅" + target_file_name + f"|| 耗时：{round(time.time()-self.last_run_time, 2)}s | 截止当月abc&非abc：{cal_excel_one_info.max_abc_num} vs {cal_excel_one_info.max_other_num}"
+            "✅" + target_file_name + f"\t{round(time.time()-self.last_run_time, 2)}s\t当月abc&非abc：{cal_excel_one_info.cur_abc_num} & {cal_excel_one_info.cur_other_num}\t截止当月abc&非abc：{cal_excel_one_info.max_abc_num} & {cal_excel_one_info.max_other_num}"
         )
 
         # run
@@ -334,7 +334,7 @@ v1.1.4 完成该场景
                 return
         else:
             file = self.file_list_wrapper.get_text_by_index(-1)
-        file = file.strip("✅").split("||")[0].strip()
+        file = file.strip("✅").split("\t")[0].strip()
         file_path = os.path.join(IMPORTANT_PATH, file)
         target_file_path = self.download_file_modal(file)
         if not target_file_path:
@@ -354,7 +354,7 @@ v1.1.4 完成该场景
                 return
         else:
             file = self.file_list_wrapper.get_text_by_index(-1)
-        file = file.strip("✅").split("||")[0].strip()
+        file = file.strip("✅").split("\t")[0].strip()
         file_path = os.path.join(IMPORTANT_PATH, file)
 
         check_yes = self.modal(level="check_yes", msg=f"即将发送：{file}", default="no")
@@ -373,6 +373,14 @@ v1.1.4 完成该场景
             attachments=attachments
         )
         self.modal(level="tip", count_down=2, msg="✅发送成功(2秒后关闭)")
+
+    def double_click_to_open(self, file):
+        if not file.startswith("✅"):
+            self.modal(level="warn", msg="请等待执行完成后再打开")
+            return
+        file = file.strip("✅").split("\t")[0].strip()
+        file_path = os.path.join(IMPORTANT_PATH, file)
+        open_file_or_folder(file_path)
 
     def reset_all_action(self):
         self.file_list_wrapper.clear()  # 上传的list

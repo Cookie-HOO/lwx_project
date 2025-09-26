@@ -59,7 +59,9 @@ def detail_group_by(upload_info: UploadInfo, code_map: dict,
         if key not in code_map:
             code_map[key] = []
 
-    for month, excel_path in upload_tuanxian_month_dict.items():
+    month_sorted = sorted(upload_tuanxian_month_dict.keys())
+    for month in month_sorted:
+        excel_path = upload_tuanxian_month_dict[month]
         try:
             # 检查文件是否存在
             if not os.path.exists(excel_path):

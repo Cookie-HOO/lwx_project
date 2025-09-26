@@ -110,8 +110,10 @@ class CalExcelOneInfo:
         self.year_month_obj: YearMonth = YearMonth()  # 根据日期得到的年月
         self.target_file_name = None  # 保存的名字
 
-        self.max_abc_num = None
-        self.max_other_num = None
+        self.max_abc_num = None  # 截止当月
+        self.max_other_num = None  # 截止当月
+        self.cur_abc_num = None  # 当月
+        self.cur_other_num = None  # 当月
 
         self._raw_df = None  # 原始df
         self._df_abc = None
@@ -353,4 +355,6 @@ def groupby_insurance_num(cal_excel_one_info: CalExcelOneInfo, max_abc_num, max_
     cal_excel_one_info._df_other = None
     cal_excel_one_info.max_abc_num = max_abc_num + df_abc_result.shape[0]
     cal_excel_one_info.max_other_num = max_other_num + df_other_result.shape[0]
+    cal_excel_one_info.cur_abc_num = df_abc_result.shape[0]
+    cal_excel_one_info.cur_other_num = df_other_result.shape[0]
     return cal_excel_one_info

@@ -1,3 +1,5 @@
+import typing
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QListWidgetItem, QHBoxLayout, QPushButton, QListWidget
@@ -87,6 +89,8 @@ class ListWidgetWrapper:
         return join.join([self.list_widget.item(i).text() for i in range(self.list_widget.count())])
 
     def get_text_by_index(self, index):
+        if self.list_widget.count() == 0:
+            return None
         if index < 0:
             index = self.list_widget.count() + index
         if index >= self.list_widget.count():
@@ -94,6 +98,19 @@ class ListWidgetWrapper:
         item = self.list_widget.item(index)
         original_text = item.text()
         return original_text
+
+    def set_text_by_index(self, index, text, color=None):
+        if self.list_widget.count() == 0:
+            return None
+        if index < 0:
+            index = self.list_widget.count() + index
+        if index >= self.list_widget.count():
+            return None
+        item = self.list_widget.item(index)
+        item.setText(text)
+        if color is not None:
+            item.setBackground(QColor(*color))
+        return None
 
     def get_index_by_text(self, text):
         for i in range(self.list_widget.count()):
@@ -108,11 +125,21 @@ class ListWidgetWrapper:
         selected_texts = [item.text() for item in selected_items]
         return selected_texts
 
-    def set_text_by_index(self, index, text, color=None):
-        item = self.list_widget.item(index)
-        item.setText(text)
-        if color is not None:
-            item.setBackground(QColor(*color))
+    def bind_double_click_func(self, on_double_click: typing.Callable[[str], None]):
+        # 定义一个槽函数，接收 QListWidgetItem 并调用用户传入的 func
+        def on_double_click_wrapper(item: QListWidgetItem):  # 默认的是传 QListWidgetItem 对象
+            on_double_click(item.text())
+
+        # 断开可能已存在的连接（避免重复绑定）
+        try:
+            self.list_widget.itemDoubleClicked.disconnect()
+        except TypeError:
+            # 如果没有连接过，disconnect 会抛出 TypeError，忽略即可
+            pass
+
+        # 绑定双击信号
+        self.list_widget.itemDoubleClicked.connect(on_double_click_wrapper)
+        return self
 
     def clear(self):
         self.list_widget.clear()
