@@ -5,6 +5,7 @@
         在这个函数中，需要传入一个列表，列表中的元素是要忽略的险种代码
     3. {保全号} 筛选 为空的行
     4. {业务性质} 筛选 {农行赠险业务}、{农行员福业务}
+        不再筛选了，保留所有的行
 
 第二步：进一步筛选得到以下两种类型的数据：
     1. 得到农行的关联交易数据
@@ -92,9 +93,30 @@ import pandas as pd
 from lwx_project.scene.monthly_east_data.const import TEMPLATE_PATH, DETAIL_PATH
 
 from lwx_project.utils.calculator import num_or_na_or_zero
+from lwx_project.utils.year_month_obj import YearMonth
 
 
-def baoxian_order_code_groupby(path, last_month_template_path, omit_baoxian_code_list, year, connection_name_path, connection_name_code_path):
+class CalExcelOneInfo:
+    def __init__(self):
+        # 原始数据
+        self.raw_row_count = None  # 原始行数
+        self.after_filter_count = None  # 基础过滤之后的值
+        self.abc_count = None  # 某列=特定值
+        self.other_count = None  # 需要在名称list中，且不是abc的
+
+        self.year_month_obj: YearMonth = YearMonth()  # 根据日期得到的年月
+        self.target_file_name = None  # 保存的名字
+
+        self.max_abc_num = None
+        self.max_other_num = None
+
+        self._raw_df = None  # 原始df
+        self._df_abc = None
+        self._df_other = None
+        self._df_result = None
+
+
+def baoxian_order_code_groupby(path, last_month_template_path, omit_baoxian_code_list, year, connection_name_path, connection_name_code_path) -> CalExcelOneInfo:
     """
     path: 团险数据的路径
     last_month_template_path: 上月的模板文件路径
@@ -104,10 +126,10 @@ def baoxian_order_code_groupby(path, last_month_template_path, omit_baoxian_code
     connection_name_code_path: 关联方名称和代码的映射文件路径
     """
     # 1. 第一步：基础筛选：对于path对应的excel表，进行基础筛选
-    df = base_filter(path, omit_baoxian_code_list)
+    cal_excel_one_info = base_filter(path, omit_baoxian_code_list)
 
     # 2. 第二步：进一步筛选得到以下两种类型的数据
-    df_abc, df_other = further_filter(df, connection_name_path)
+    cal_excel_one_info= further_filter(cal_excel_one_info, connection_name_path)
 
     # 3. 第三步：准备其他数据
     max_abc_num, max_other_num, connection_name, connection_name_code = prepare_data(
@@ -115,22 +137,25 @@ def baoxian_order_code_groupby(path, last_month_template_path, omit_baoxian_code
     )
 
     # 4. 第四步：针对第二步得到的两部分数据，groupby {保险单号} 进行汇总（配合第三部分得到的辅助数据）
-    df_result = groupby_insurance_num(
-        df_abc, df_other, max_abc_num, max_other_num, connection_name, connection_name_code, year
+    cal_excel_one_info = groupby_insurance_num(
+        cal_excel_one_info, max_abc_num, max_other_num, connection_name, connection_name_code, year
     )
 
-    return df_result
+    return cal_excel_one_info
 
 
-def base_filter(path, omit_baoxian_code_list):
+def base_filter(path, omit_baoxian_code_list) -> CalExcelOneInfo:
     """
     基础筛选函数
     :param path: Excel文件路径
     :param omit_baoxian_code_list: 要忽略的险种代码列表
     :return: 筛选后的DataFrame
     """
+    cal_excel_one_info = CalExcelOneInfo()
+
     # 读取Excel文件
     df = pd.read_excel(path)
+    cal_excel_one_info.raw_row_count = df.shape[0]
     
     # 1. 筛选 {团/卡单业务} 等于 团体保单 的行
     df = df[df['团/卡单业务'] == '团体保单']
@@ -144,19 +169,22 @@ def base_filter(path, omit_baoxian_code_list):
     df = df[df['保全号'].isna()]
     
     # 4. 筛选 {业务性质} 等于 {农行赠险业务} 或 {农行员福业务} 的行
-    df = df[df['业务性质'].isin(['农行赠险业务', '农行员福业务'])]
-    
-    return df
+    # df = df[df['业务性质'].isin(['农行赠险业务', '农行员福业务'])]
+
+    cal_excel_one_info.after_filter_count = df.shape[0]
+    cal_excel_one_info._raw_df = df
+    return cal_excel_one_info
 
 
-def further_filter(df, connection_name_path):
+def further_filter(cal_excel_one_info: CalExcelOneInfo, connection_name_path) -> CalExcelOneInfo:
     """
     进一步筛选得到两种类型的数据
-    :param df: 基础筛选后的DataFrame
+    :param cal_excel_one_info: 基础筛选后的DataFrame
     :param connection_name_path: 关联方名称文件路径
     :return: (df_abc, df_other) 农行数据和其他关联方数据
     """
     # 1. 得到农行的关联交易数据
+    df = cal_excel_one_info._raw_df
     # 筛选 {团体客户名称} 包含“中国农业银行股份有限公司” 的行
     df_abc = df[df['团体客户名称'].str.contains('中国农业银行股份有限公司', na=False)]
     
@@ -169,12 +197,19 @@ def further_filter(df, connection_name_path):
     # 筛选 {团体客户名称} 在关联方名称列表中的行
     # 排除已经属于农行的数据
     df_other = df[df['团体客户名称'].isin(connection_names) & ~df.index.isin(df_abc.index)]
-    
-    return df_abc, df_other
+
+    # 组装结果
+    cal_excel_one_info._df_abc = df_abc
+    cal_excel_one_info._df_other = df_other
+    cal_excel_one_info.abc_count = df_abc.shape[0]
+    cal_excel_one_info.other_count = df_other.shape[0]
+
+    cal_excel_one_info._raw_df = None
+    return cal_excel_one_info
 
 
 def build_connection_dict(df):
-    """ todo: 这里放到check中
+    """
     从DataFrame构建字典，要求：
     1. 跳过key为NaN的行
     2. 跳过value为空（NaN或空字符串）的行
@@ -269,11 +304,10 @@ def prepare_data(last_month_template_path, connection_name_path, connection_name
     return max_abc_num, max_other_num, connection_name, connection_name_code
 
 
-def groupby_insurance_num(df_abc, df_other, max_abc_num, max_other_num, connection_name, connection_name_code, year):
+def groupby_insurance_num(cal_excel_one_info: CalExcelOneInfo, max_abc_num, max_other_num, connection_name, connection_name_code, year) -> CalExcelOneInfo:
     """
     按保险单号分组汇总数据
-    :param df_abc: 农行数据
-    :param df_other: 其他关联方数据
+    :param cal_excel_one_info: 包括 农行数据、其他关联方数据
     :param max_abc_num: 农行最大数字
     :param max_other_num: 其他关联方最大数字
     :param connection_name: 关联方名称列表
@@ -281,6 +315,9 @@ def groupby_insurance_num(df_abc, df_other, max_abc_num, max_other_num, connecti
     :param year: 年份
     :return: 汇总后的DataFrame
     """
+    cal_excel_one_info.max_abc_num = max_abc_num
+    cal_excel_one_info.max_other_num = max_other_num
+    df_abc, df_other = cal_excel_one_info._df_abc, cal_excel_one_info._df_other
     # 定义汇总函数
     def groupby_func(df, is_abc=True):
         # 按保险单号分组
@@ -338,8 +375,12 @@ def groupby_insurance_num(df_abc, df_other, max_abc_num, max_other_num, connecti
     
     # 合并结果
     df_result = pd.concat([df_abc_result, df_other_result], ignore_index=True)
-    
-    return df_result
+
+    cal_excel_one_info._df_result = df_result
+
+    cal_excel_one_info._df_abc = None
+    cal_excel_one_info._df_other = None
+    return cal_excel_one_info
 
 
 if __name__ == '__main__':

@@ -89,6 +89,8 @@ class ListWidgetWrapper:
     def get_text_by_index(self, index):
         if index < 0:
             index = self.list_widget.count() + index
+        if index >= self.list_widget.count():
+            return None
         item = self.list_widget.item(index)
         original_text = item.text()
         return original_text

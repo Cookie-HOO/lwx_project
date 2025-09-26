@@ -51,39 +51,85 @@ class FastExcelReader:
         返回:
             int: 第一行从左到右连续非空单元格的数量（至少为 0）。
         """
-        col_index = 1
+        col_num = 1
         max_col_num = max_col_num or self.MAX_COL_NUM
         try:
             while True:
-                col_letter = get_column_letter(col_index)
+                col_letter = get_column_letter(col_num)
                 cell_value = self.ws[f"{col_letter}{row_num}"].value
                 # None or ""
                 if cell_value is None or (isinstance(cell_value, str) and len(cell_value) == 0):
                     break
-                col_index += 1
-                if col_index > max_col_num:
+                col_num += 1
+                if col_num > max_col_num:
                     break
         finally:
-            return col_index - 1
+            return col_num - 1
 
 
     def check_excel_row(self, row_num, required_value_list: list, max_col_num=None) -> (typing.Optional[int], list):
         max_col_num = max_col_num or self.MAX_COL_NUM
         required_value_list_copy = required_value_list[:]
-        col_index = 1
+        col_num = 1
 
         try:
             while required_value_list_copy:
-                col_letter = get_column_letter(col_index)
-                cell_value = self.ws[f"{col_letter}{row_num}"].value
+                cell_value = self.get_cell_value(row_num, col_num)
                 # None or ""
                 if cell_value is None or (isinstance(cell_value, str) and len(cell_value) == 0):
                     pass
                 else:
                     if cell_value in required_value_list_copy:
                         required_value_list_copy.remove(cell_value)
-                col_index += 1
-                if col_index > max_col_num:
+                col_num += 1
+                if col_num > max_col_num:
                     break
         finally:
             return len(required_value_list_copy) == 0, required_value_list_copy
+
+    def get_cell_value(self, row_num, col_num):
+        col_letter = get_column_letter(col_num)
+        cell_value = self.ws[f"{col_letter}{row_num}"].value
+        return cell_value
+
+    def posit_col_in_row_by_value(self, row_num, value, max_col_num=None) -> int:
+        """根据具体内容，在特定行定位列, 返回列号col_num"""
+        max_col_num = max_col_num or self.MAX_COL_NUM
+        col_num = 1
+
+        try:
+            while True:
+                cell_value = self.get_cell_value(row_num, col_num)
+                # None or ""
+                if cell_value is None or (isinstance(cell_value, str) and len(cell_value) == 0):
+                    pass
+                else:
+                    if str(cell_value) == str(value):
+                        break
+                col_num += 1
+                if col_num > max_col_num:
+                    col_num = -1
+                    break
+        finally:
+            return col_num
+
+    def posit_row_in_col_by_value(self, col_num, value) -> int:
+        """根据具体内容，在特定列定位行, 返回行号row_num"""
+        max_row_num = self.ws.max_row
+        row_num = 1
+
+        try:
+            while True:
+                cell_value = self.get_cell_value(row_num, col_num)
+                # None or ""
+                if cell_value is None or (isinstance(cell_value, str) and len(cell_value) == 0):
+                    pass
+                else:
+                    if str(cell_value) == str(value):
+                        break
+                row_num += 1
+                if row_num > max_row_num:
+                    col_num = -1
+                    break
+        finally:
+            return col_num
