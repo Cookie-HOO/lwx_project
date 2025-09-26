@@ -19,3 +19,5 @@ def core_tuanxian_get_month(detail_path: str) -> typing.Optional[YearMonth]:
         date_value = fe.get_cell_value(2, col_num)
         if date_value:
             return YearMonth.new_from_str(date_value)
+
+    return None

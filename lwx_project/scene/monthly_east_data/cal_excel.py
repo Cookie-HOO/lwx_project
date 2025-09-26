@@ -9,7 +9,7 @@
 
 第二步：进一步筛选得到以下两种类型的数据：
     1. 得到农行的关联交易数据
-        1. {团体客户名称} 包含“中国农业银行股份有限公司”
+        1. {团体客户名称} 包含“中国农业银行”
     
     2. 得到其他关联方的交易数据
         1. 在 connection_name_path 存储的excel 中，读取第一列（没有列名，直接是所有的名称
@@ -90,6 +90,9 @@
 import os
 import re
 import pandas as pd
+
+from lwx_project.scene.monthly_east_data.utils import get_name_code_map, get_name, \
+    build_east_result_path_from_year_month
 from lwx_project.scene.monthly_east_data.const import TEMPLATE_PATH, DETAIL_PATH
 
 from lwx_project.utils.calculator import num_or_na_or_zero
@@ -116,10 +119,9 @@ class CalExcelOneInfo:
         self._df_result = None
 
 
-def baoxian_order_code_groupby(path, last_month_template_path, omit_baoxian_code_list, year, connection_name_path, connection_name_code_path) -> CalExcelOneInfo:
+def baoxian_order_code_groupby(path, cur_year_month: YearMonth, omit_baoxian_code_list, year, connection_name_path, connection_name_code_path) -> CalExcelOneInfo:
     """
     path: 团险数据的路径
-    last_month_template_path: 上月的模板文件路径
     omit_baoxian_code_list: 要忽略的险种列表
     year: 年
     connection_name_path: 关联方名称的件路径
@@ -133,7 +135,7 @@ def baoxian_order_code_groupby(path, last_month_template_path, omit_baoxian_code
 
     # 3. 第三步：准备其他数据
     max_abc_num, max_other_num, connection_name, connection_name_code = prepare_data(
-        last_month_template_path, connection_name_path, connection_name_code_path
+        cur_year_month, connection_name_path, connection_name_code_path
     )
 
     # 4. 第四步：针对第二步得到的两部分数据，groupby {保险单号} 进行汇总（配合第三部分得到的辅助数据）
@@ -185,8 +187,8 @@ def further_filter(cal_excel_one_info: CalExcelOneInfo, connection_name_path) ->
     """
     # 1. 得到农行的关联交易数据
     df = cal_excel_one_info._raw_df
-    # 筛选 {团体客户名称} 包含“中国农业银行股份有限公司” 的行
-    df_abc = df[df['团体客户名称'].str.contains('中国农业银行股份有限公司', na=False)]
+    # 筛选 {团体客户名称} 包含“中国农业” 的行
+    df_abc = df[df['团体客户名称'].str.contains('中国农业银行', na=False)]
     
     # 2. 得到其他关联方的交易数据
     # 读取关联方名称文件的第一列（没有列名）
@@ -208,98 +210,69 @@ def further_filter(cal_excel_one_info: CalExcelOneInfo, connection_name_path) ->
     return cal_excel_one_info
 
 
-def build_connection_dict(df):
+def _get_max_num(cur_year_month: YearMonth):
     """
-    从DataFrame构建字典，要求：
-    1. 跳过key为NaN的行
-    2. 跳过value为空（NaN或空字符串）的行
-    3. 同一个key只能对应一个非空value，否则报错
+    abc和other 都可能需要递归往前找上个月对应的文件的最大数字
     """
-    connection_name_code = {}
+    # 如果没有这个文件
+    last_month_template_path = build_east_result_path_from_year_month(cur_year_month.sub_one_month())
+    if not os.path.exists(last_month_template_path):
+        return 0, 0  # max_abc_num, max_other_num
 
-    for idx, row in df.iterrows():
-        # 处理 key
-        key_raw = row[df.columns[0]]
-        if pd.isna(key_raw):
-            continue  # 跳过 key 为 NaN 的行
-        key = str(key_raw)
+    # 如果有这个文件
+    template_df = pd.read_excel(last_month_template_path, engine='openpyxl', sheet_name="关联交易协议实体")
 
-        # 处理 value
-        value_raw = row[df.columns[1]]
-        if pd.isna(value_raw):
-            continue  # 跳过 value 为 NaN 的行
+    # 检查是否有“*交易协议名称”列
+    if '*交易协议名称' in template_df.columns:
+        # 分别提取农行和其他关联方的最大数字
+        abc_pattern = re.compile(r'农行员福保险合同\d{4}-(\d+)')
+        other_pattern = re.compile(r'其他关联方员福保险合同\d{4}-(\d+)')
 
-        value_str = str(value_raw).strip()
-        if not value_str:  # 跳过空字符串
-            continue
+        max_abc_num = 0
+        max_other_num = 0
 
-        # 检查是否已经存在该key
-        if key in connection_name_code:
-            # 如果已存在的值与当前值不同，则报错
-            if connection_name_code[key] != value_str:
-                raise ValueError(
-                    f"Key '{key}' 对应多个不同的值: "
-                    f"'{connection_name_code[key]}' 和 '{value_str}' "
-                    f"(行索引: {idx})"
-                )
-        else:
-            # 第一次遇到这个key，添加到字典
-            connection_name_code[key] = value_str
+        # 找最大值
+        for name in template_df['*交易协议名称'].dropna():
+            abc_match = abc_pattern.search(str(name))
+            other_match = other_pattern.search(str(name))
 
-    return connection_name_code
+            if abc_match:
+                this_abc_num = int(abc_match.group(1))
+                if this_abc_num > max_abc_num:
+                    max_abc_num = this_abc_num
 
+            elif other_match:
+                this_other_num = int(other_match.group(1))
+                if this_other_num > max_other_num:
+                    max_other_num = this_other_num
 
-def prepare_data(last_month_template_path, connection_name_path, connection_name_code_path):
+        # 最优：两个都不是0
+        if max_abc_num != 0 and max_other_num != 0:
+            return max_abc_num, max_other_num
+        # 递归查找
+        elif max_abc_num == 0:
+            max_abc_num, _ = _get_max_num(cur_year_month.sub_one_month())
+            return max_abc_num, max_other_num
+        elif max_other_num == 0:
+            _, max_other_num = _get_max_num(cur_year_month.sub_one_month())
+            return max_abc_num, max_other_num
+    return 0, 0
+
+def prepare_data(cur_year_month, connection_name_path, connection_name_code_path):
     """
     准备其他数据
-    :param last_month_template_path: 上月的模板文件路径，可能是None（1月份没有last）
+    :param cur_year_month: 当前的年月对象
     :param connection_name_path: 关联方名称文件路径
     :param connection_name_code_path: 关联方名称和代码的映射文件路径
     :return: (max_abc_num, max_other_num, connection_name, connection_name_code)
     """
-    # 1. 读取TEMPLATE_PATH中的“*交易协议名称”列，获取最大数字
-    # 检查模板文件是否存在
-    if not last_month_template_path or not os.path.exists(last_month_template_path):
-        # 如果文件不存在，返回默认值
-        max_abc_num = 0
-        max_other_num = 0
-    else:
-        # 读取模板文件
-        template_df = pd.read_excel(last_month_template_path,  engine='openpyxl', sheet_name="关联交易协议实体")
-        
-        # 检查是否有“*交易协议名称”列
-        if '*交易协议名称' in template_df.columns:
-            # 分别提取农行和其他关联方的最大数字
-            abc_pattern = re.compile(r'农行员福保险合同\d{4}-(\d+)')
-            other_pattern = re.compile(r'其他关联方员福保险合同\d{4}-(\d+)')
-            
-            abc_nums = []
-            other_nums = []
-            
-            for name in template_df['*交易协议名称'].dropna():
-                abc_match = abc_pattern.search(str(name))
-                other_match = other_pattern.search(str(name))
-                
-                if abc_match:
-                    abc_nums.append(int(abc_match.group(1)))
-                elif other_match:
-                    other_nums.append(int(other_match.group(1)))
-            
-            # 获取最大数字，如果没有则为0
-            max_abc_num = max(abc_nums) if abc_nums else 0
-            max_other_num = max(other_nums) if other_nums else 0
-        else:
-            max_abc_num = 0
-            max_other_num = 0
+    max_abc_num, max_other_num = _get_max_num(cur_year_month)
     
     # 2. 读取关联方名称文件的第一列
-    connection_name_df = pd.read_excel(connection_name_path, header=None)
-    connection_name = [str(name) for name in connection_name_df.iloc[:, 0].tolist()]
+    connection_name = get_name(connection_name_path)
 
     # 3. 读取关联方名称和代码的映射文件
-    connection_name_code_df = pd.read_excel(connection_name_code_path, header=None)
-    # 创建映射字典，确保键是字符串类型
-    connection_name_code = build_connection_dict(connection_name_code_df)
+    connection_name_code = get_name_code_map(connection_name_code_path)
 
     return max_abc_num, max_other_num, connection_name, connection_name_code
 
@@ -315,8 +288,6 @@ def groupby_insurance_num(cal_excel_one_info: CalExcelOneInfo, max_abc_num, max_
     :param year: 年份
     :return: 汇总后的DataFrame
     """
-    cal_excel_one_info.max_abc_num = max_abc_num
-    cal_excel_one_info.max_other_num = max_other_num
     df_abc, df_other = cal_excel_one_info._df_abc, cal_excel_one_info._df_other
     # 定义汇总函数
     def groupby_func(df, is_abc=True):
@@ -380,20 +351,6 @@ def groupby_insurance_num(cal_excel_one_info: CalExcelOneInfo, max_abc_num, max_
 
     cal_excel_one_info._df_abc = None
     cal_excel_one_info._df_other = None
+    cal_excel_one_info.max_abc_num = max_abc_num + df_abc_result.shape[0]
+    cal_excel_one_info.max_other_num = max_other_num + df_other_result.shape[0]
     return cal_excel_one_info
-
-
-if __name__ == '__main__':
-    path_ = DETAIL_PATH,
-    omit_baoxian_code_list_ = [7824, 2801, 7854],
-    year_ = "2025"
-    connection_name_path_ = ""
-    connection_name_code_path_ = ""
-    baoxian_order_code_groupby(
-        path_,
-        TEMPLATE_PATH,
-        omit_baoxian_code_list_,
-        year_,
-        connection_name_path_,
-        connection_name_code_path_,
-    )

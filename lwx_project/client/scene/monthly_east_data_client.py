@@ -44,13 +44,11 @@ class Worker(BaseWorker):
 
         elif stage == "start_cal":
             self.refresh_signal.emit("计算中...")
-            last_month_template_path: str = self.get_param("last_month_template_path")
             upload_file_path_map: dict = self.get_param("upload_file_path_map")
             target_year: str = self.get_param("target_year")
             omit_baoxian_code_list: list = self.get_param("omit_baoxian_code_list")
 
             cal_and_merge(
-                last_month_template_path,
                 upload_file_path_map,
                 target_year,
                 omit_baoxian_code_list,
@@ -74,8 +72,11 @@ class MyMonthlyEastDataClient(WindowWithMainWorker):
 上传核心团险数据表（必须）和关联方名称以及名称代码表（后两个可选）
 核心团险数据表可以上传多个
 程序会进行以下操作
-1. 农行和其他关联方的数据
-2. 根据保险单号做groupby，的到其他列
+1. 基础过滤：险种代码过滤 + 保全号不为空 + 团体保单过滤
+2. 农行和其他关联方的数据
+    农行：包含：中国农业银行的
+    其他：在名单中的
+2. 根据保险单号做groupby，计算其他列
 3. 和important中之前计算的结果进行合并
 每个月做一次
 
@@ -271,7 +272,6 @@ v1.1.4 完成该场景
         self.last_run_time = time.time()
         params = {
             "stage": "start_cal",
-            "last_month_template_path": os.path.join(IMPORTANT_PATH, last_month_result[0]) if last_month_result[0] else None,
             "upload_file_path_map": self.upload_file_path_map,
             "target_year": year_month_obj.year,
             "omit_baoxian_code_list": [i.strip() for i in self.omit_baoxian_code_text.text().split(",")],
@@ -303,7 +303,7 @@ v1.1.4 完成该场景
         index = all_f.index(target_file_name)
         self.file_list_wrapper.set_text_by_index(
             index,
-            "✅" + target_file_name + f"|| 耗时：{round(time.time()-self.last_run_time, 2)}s | 过滤行数：{cal_excel_one_info.raw_row_count}->{cal_excel_one_info.after_filter_count}｜当期abc&非abc：{cal_excel_one_info.abc_count} vs {cal_excel_one_info.other_count} ｜ 截止上月abc&非abc：{cal_excel_one_info.max_abc_num} vs {cal_excel_one_info.max_other_num}"
+            "✅" + target_file_name + f"|| 耗时：{round(time.time()-self.last_run_time, 2)}s | 截止当月abc&非abc：{cal_excel_one_info.max_abc_num} vs {cal_excel_one_info.max_other_num}"
         )
 
         # run
