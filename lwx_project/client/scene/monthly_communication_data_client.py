@@ -40,6 +40,10 @@ class Worker(BaseWorker):
                 "error_msg": error_msg,
                 "res": res,
             })
+            # True的意思是：worker结束后（校验结束后），不打断整个流程（即不返回执行时间的阻断性弹窗）
+            # 如果通过，主程序发起计算任务，时间累计
+            # 如果失败，主程序报错中断
+            return True
 
 
         elif stage == "start_cal":
@@ -106,8 +110,11 @@ v1.1.3:
 - update: auth.json的路径修改
 
 v1.1.4
+- feat: 可多次上传文件
 - update: 双击打开文件
 - update: 执行中展示优化 🏃✅
+- update: 上传后不校验，点击计算后校验+执行
+- update: 增加校验逻辑
     """
 
     def __init__(self):
@@ -137,6 +144,7 @@ v1.1.4
                 2月（已计算）
         """
         super(MyMonthlyCommunicationDataClient, self).__init__()
+        os.makedirs(IMPORTANT_PATH, exist_ok=True)
         uic.loadUi(UI_PATH.format(file="monthly_communication_data.ui"), self)  # 加载.ui文件
         self.setWindowTitle("每月同业交流数据汇总计算——By LWX")
         self.tip_loading = self.modal(level="loading", titile="加载中...", msg=None)
@@ -158,6 +166,8 @@ v1.1.4
             }}
             with open(CONFIG_PATH, "w") as f:
                 f.write(json.dumps(self.config))
+        # 调整初始化布局
+        self.upload_vs_cal_spliter.setSizes([30,70])
         # 配置保险代码规则的table
         self.baoxian_code_config_table_wrapper = TableWidgetWrapper(self.baoxian_code_config_table)
 
@@ -172,8 +182,10 @@ v1.1.4
         # 重置按钮
         self.reset_button.clicked.connect(self.reset_all_action)
         # 展示上传文件结果
+        self.raw_upload_list_wrapper = ListWidgetWrapper(self.raw_upload_list).bind_right_click_menu({"删除": self.right_click_menu_delete})
         self.upload_list_wrapper = ListWidgetWrapper(self.upload_list).bind_double_click_func(self.double_click_to_open)
 
+        self.raw_upload_files_map = {}
         self.upload_info: typing.Optional[UploadInfo] = None  # 上传的结果
         self.done_num = 0
         self.last_run_time = None
@@ -182,32 +194,58 @@ v1.1.4
     def register_worker(self):
         return Worker()
 
-
+    # 只负责上传，改变UI，不负责校验
     def upload_files_action(self):
+        """上传进行校验"""
+        if self.start_run_time is not None:
+            self.modal(level="warn", msg="开始执行后无法上传文件")
+            return
         file_names = self.upload_file_modal(["Excel Files", "*.xls*"], multi=True)
         if not file_names:
             return
 
+        for f in file_names:
+            base_f = get_file_name_with_extension(f)
+            if base_f in self.raw_upload_files_map:
+                self.modal(level="warn", msg=f"不允许上传重名的文件: {base_f}")
+                return
+            self.raw_upload_files_map[base_f] = f
+            self.raw_upload_list_wrapper.add_item(base_f)
+
+    # 点击计算：这里的逻辑稍微有点绕
+    # 1. cal_baoxian_action 点击计算后，发起文件的异步校验
+    # 2. 校验如果成功需要设置信息，并且进一步发起异步计算（在校验的回调中）
+    # 3. 校验如果失败需要提示失败，并且终止（在校验的回调中）
+    def cal_baoxian_action(self):
+        if not self.raw_upload_files_map:
+            self.modal(level="warn", msg="请先上传文件")
+        if self.start_run_time is not None:
+            self.modal(level="warn", msg="开始执行后无法重复执行，请先重置")
+            return
+
+        # 文件校验的异步
         params = {
             "stage": "check_upload",
-            "file_path_list": file_names,
+            "file_path_list": self.raw_upload_files_map.values(),
         }
-        self.worker.add_params(params).start()
+        self.worker.add_params(params).start()  # 注意这个异步执行完成后静默
 
         # 增加loading tip
         self.tip_loading.set_titles(["上传文件校验.", "上传文件校验..", "上传文件校验..."]).show()
 
-        pass
+        # 真正的计算在上传成功后执行
 
+    # 校验的回调：
+    # 如果校验成功，则构建发起任务的参数，发起任务
     def custom_after_check_upload(self, result):
         is_success = result.get("is_success")
         error_msg = result.get("error_msg")
         upload_info: UploadInfo= result.get("res")
-        self.tip_loading.hide()
 
         # 校验是否通过
         if not is_success:
             self.modal(level="warn", msg=error_msg)
+            self.tip_loading.hide()
             return
 
         # 设置上传信息
@@ -237,10 +275,7 @@ v1.1.4
         )
         self.upload_info = upload_info
 
-    def cal_baoxian_action(self):
-        if self.upload_info is None:
-            self.modal(level="warn", msg="请先上传核心团险数据文件")
-            return
+        # 发起计算
         # 整理当前规则
         """
         baoxian_code_config_table：配置险种代码规则的table，共三列说明如下
@@ -310,13 +345,21 @@ v1.1.4
     def custom_after_all_cal(self, result):
         self.tip_loading.hide()
 
-    def double_click_to_open(self, file_name):
+    def double_click_to_open(self, index, item):
+        file_name = item
         if self.upload_info is None or not file_name.startswith("✅"):
             self.modal(level="warn", msg="请等待执行完成后再打开")
             return
         file_name = file_name.split("\t")[0].strip("✅").strip()
         path = os.path.join(IMPORTANT_PATH, str(self.upload_info.year), file_name)
         open_file_or_folder(path)
+
+    def right_click_menu_delete(self, index, item):
+        if self.start_run_time is not None:
+            self.modal(level="warn", msg="开始执行后无法删除文件")
+            return
+        self.raw_upload_list_wrapper.remove_item_by_index(index)
+        self.raw_upload_files_map.pop(item)
 
     def download_file_action(self):
         selected = self.upload_list_wrapper.get_selected_text()
@@ -330,6 +373,8 @@ v1.1.4
         file = file.split("\t")[0].strip("✅").strip()
         file_path = os.path.join(IMPORTANT_PATH, str(self.upload_info.year), file)
         target_file_path = self.download_file_modal(file)
+        if not target_file_path:
+            return
         copy_file(file_path, target_file_path)
         self.modal(level="info", msg="✅下载成功")
 
@@ -364,8 +409,13 @@ v1.1.4
 
     def reset_all_action(self):
         self.upload_list_wrapper.clear()  # 上传的list
+        self.raw_upload_list_wrapper.clear()
 
-        self.upload_info = None  # 上传的结果
+        text = f"当前年份：--，汇总计算 --/--个月度数据"
+        self.upload_info_text.setText(text)
+
+        self.raw_upload_files_map = {}
+        self.upload_info: typing.Optional[UploadInfo] = None  # 上传的结果(check后)
         self.done_num = 0
         self.last_run_time = None
         self.start_run_time = None

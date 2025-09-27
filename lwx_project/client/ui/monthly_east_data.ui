@@ -20,7 +20,7 @@
    <bool>true</bool>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout">
+   <layout class="QVBoxLayout" name="verticalLayout_3" stretch="1,1,1,99">
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_8">
       <item>
@@ -124,69 +124,84 @@
      </widget>
     </item>
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
-      <item>
-       <widget class="QPushButton" name="upload_button">
-        <property name="text">
-         <string>1. 上传文件</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLabel" name="label_4">
-        <property name="text">
-         <string>&gt;&gt;</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="cal_button">
-        <property name="text">
-         <string>2. 开始计算</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLabel" name="label_3">
-        <property name="layoutDirection">
-         <enum>Qt::LeftToRight</enum>
-        </property>
-        <property name="text">
-         <string>&gt;&gt;</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="download_file_button">
-        <property name="text">
-         <string>下载文件</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="send_file_button">
-        <property name="text">
-         <string>发送邮件</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <widget class="QLabel" name="upload_info_text">
-      <property name="text">
-       <string/>
+     <widget class="QSplitter" name="upload_vs_cal_spliter">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
       </property>
+      <widget class="QWidget" name="">
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <widget class="QPushButton" name="upload_button">
+          <property name="text">
+           <string>1. 上传文件</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="upload_info_text_2">
+          <property name="text">
+           <string>右键可删除</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QListWidget" name="raw_upload_list"/>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="">
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QPushButton" name="cal_button">
+            <property name="text">
+             <string>2. 开始计算</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_3">
+            <property name="layoutDirection">
+             <enum>Qt::LeftToRight</enum>
+            </property>
+            <property name="text">
+             <string>&gt;&gt;</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="download_file_button">
+            <property name="text">
+             <string>下载文件</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="send_file_button">
+            <property name="text">
+             <string>发送邮件</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QLabel" name="upload_info_text">
+          <property name="text">
+           <string>当前年份：--，汇总计算 --/--个月度数据，平均耗时 --s</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QListWidget" name="upload_list"/>
+        </item>
+       </layout>
+      </widget>
      </widget>
-    </item>
-    <item>
-     <widget class="QListWidget" name="file_list"/>
     </item>
    </layout>
   </widget>

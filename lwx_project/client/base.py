@@ -35,12 +35,13 @@ class BaseWorker(QThread):
     # 生命周期信号
     after_start_signal = pyqtSignal()
     refresh_signal = pyqtSignal(str)  # refresh的文本,可以显示在状态栏中
-    before_finished_signal = pyqtSignal()
+    before_finished_signal = pyqtSignal(dict)
     # 元素操作信号
     modal_signal = pyqtSignal(str, str)  # info|warn|error, msg  其中error会终止程序
     clear_element_signal = pyqtSignal(str)  # clear
     append_element_signal = pyqtSignal(str, str)  # add
     set_element_signal = pyqtSignal(str, str)  # clear + add、
+
 
     # 链式添加参数
     def add_param(self, param_key, param_value):
@@ -60,12 +61,14 @@ class BaseWorker(QThread):
     def run(self):
         self.after_start_signal.emit()
         try:
-            self.my_run()
+            mute_when_success = self.my_run()
         except ClientWorkerException as e:
             return self.modal_signal.emit("error", str(e))
         except Exception as e:
             return self.modal_signal.emit("error", traceback.format_exc())
-        self.before_finished_signal.emit()
+        self.before_finished_signal.emit({
+            "mute_when_success": mute_when_success
+        })
 
     @logger_sys_error
     def my_run(self):
@@ -319,7 +322,7 @@ class WindowWithMainWorker(BaseWindow):
         # 计时器
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_time)
-        self.start_time = None
+        self.__start_time = None
         # 任务状态与显示
         self.refresh_text = ""  # worker中发出来后,绑定到这个变量,被statusbar更新
         self.status_text = ""  # 完整状态信息,有运行时间 + refresh_text
@@ -364,15 +367,17 @@ class WindowWithMainWorker(BaseWindow):
     def set_status_running(self):
         self.__status = "running"
 
-    def set_status_success(self):
-        elapsed_time = self.start_time.secsTo(QTime.currentTime())
+    def set_status_success(self, result):
+        mute_after_success = result.get("mute_when_success")
+        elapsed_time = self.__start_time.secsTo(QTime.currentTime())
         self.statusBar.showMessage(f"Success: Last for: {elapsed_time} seconds")
         self.timer.stop()
         self.__status = "success"
-        self.modal("info", title="Finished", msg=f"执行完成,共用时{self.start_time.secsTo(QTime.currentTime())}秒")
+        if not mute_after_success:
+            self.modal("info", title="Finished", msg=f"执行完成,共用时{self.__start_time.secsTo(QTime.currentTime())}秒")
 
     def set_status_failed(self):
-        elapsed_time = self.start_time.secsTo(QTime.currentTime())
+        elapsed_time = self.__start_time.secsTo(QTime.currentTime())
         self.statusBar.showMessage(f"Failed: Last for: {elapsed_time} seconds")
         self.timer.stop()
         self.__status = "failed"
@@ -381,12 +386,12 @@ class WindowWithMainWorker(BaseWindow):
     # 生命周期: worker任务启动
     def after_start(self):
         self.set_status_running()
-        self.start_time = QTime.currentTime()
+        self.__start_time = QTime.currentTime()
         self.timer.start(1000)  # 更新频率为1秒
 
     # 生命周期: worker停止前每秒刷新的内容
     def update_time(self):  # 计时器停止,自然就没人调用了,不用判断状态
-        elapsed_time = self.start_time.secsTo(QTime.currentTime())
+        elapsed_time = self.__start_time.secsTo(QTime.currentTime())
         self.status_text = f"Last for: {elapsed_time} seconds :: {self.refresh_text}"
         self.statusBar.showMessage(self.status_text)
 
@@ -394,8 +399,8 @@ class WindowWithMainWorker(BaseWindow):
         self.refresh_text = refresh_text
 
     # 生命周期: worker停止前
-    def before_finished(self):
-        self.set_status_success()
+    def before_finished(self, result):
+        self.set_status_success(result)
 
     # 工具函数
     def download_zip_or_file_from_path(self, path_or_df, default_topic, exclude=None):

@@ -13,7 +13,7 @@ from lwx_project.scene.monthly_east_data.check_excel import check_excels
 from lwx_project.scene.monthly_east_data.const import CONFIG_PATH, IMPORTANT_PATH, TEMPLATE_FILE_NAME_PREFIX, \
     TEMPLATE_FILE_NAME_SUFFIX
 from lwx_project.scene.monthly_east_data.main import cal_and_merge
-from lwx_project.utils.file import copy_file, open_file_or_folder
+from lwx_project.utils.file import copy_file, open_file_or_folder, get_file_name_with_extension
 from lwx_project.utils.mail import send_mail
 from lwx_project.utils.year_month_obj import YearMonth
 
@@ -40,6 +40,7 @@ class Worker(BaseWorker):
                 "error_msg": error_msg,
                 "upload_file_path_map": res,
             })
+            return True  # 校验的结束不会触发阻断性的弹窗
 
 
         elif stage == "start_cal":
@@ -113,7 +114,7 @@ class MyMonthlyEastDataClient(WindowWithMainWorker):
 
     release_info_text = """
 v1.1.4 完成该场景
-- 配置、上传，允许上传多个核心团险数据表
+- 配置、上传(可多次)，允许上传多个核心团险数据表
 - 计算、融合
 - 指定月份下载、发送
     """
@@ -136,9 +137,12 @@ v1.1.4 完成该场景
             file_list：将计算完成的文件列出
         """
         super(MyMonthlyEastDataClient, self).__init__()
+        os.makedirs(IMPORTANT_PATH, exist_ok=True)
         uic.loadUi(UI_PATH.format(file="monthly_east_data.ui"), self)  # 加载.ui文件
         self.setWindowTitle("每月east数据汇总计算——By LWX")
         self.tip_loading = self.modal(level="loading", titile="加载中...", msg=None)
+        # 调整初始化布局
+        self.upload_vs_cal_spliter.setSizes([30,70])
         # 初始化帮助信息
         self.help_info_button.clicked.connect(
             lambda: self.modal(level="info", msg=self.help_info_text, width=800, height=400))
@@ -164,13 +168,15 @@ v1.1.4 完成该场景
         # 重置按钮
         self.reset_button.clicked.connect(self.reset_all_action)
         # 展示上传文件结果
-        self.file_list_wrapper = ListWidgetWrapper(self.file_list).bind_double_click_func(self.double_click_to_open)
+        self.raw_upload_list_wrapper = ListWidgetWrapper(self.raw_upload_list).bind_right_click_menu({"删除": self.right_click_menu_delete})
+        self.upload_list_wrapper = ListWidgetWrapper(self.upload_list).bind_double_click_func(self.double_click_to_open)
 
         # 初始化信息：会被重置
-        self.file_list_wrapper.clear()  # 上传的list
+        self.upload_list_wrapper.clear()  # 上传的list
         text = f"当前年份：--，汇总计算 --/--个月度数据，平均耗时 --s"
         self.upload_info_text.setText(text)
 
+        self.raw_upload_files_map = {}
         self.upload_file_path_map = None  # 上传的结果 dict，{"核心团险数据": "", "名称": "", "名称代码映射": ""}
 
         self.done_f = []  # 已经计算好的文件，如果本次计算的有，那么会remove掉（上传后已打勾的文件）
@@ -185,21 +191,38 @@ v1.1.4 完成该场景
     def register_worker(self):
         return Worker()
 
+    # 只负责上传，改变UI，不负责校验
     def upload_files_action(self):
+        """上传进行校验"""
+        if self.start_run_time is not None:
+            self.modal(level="warn", msg="开始执行后无法上传文件")
+            return
         file_names = self.upload_file_modal(["Excel Files", "*.xls*"], multi=True)
         if not file_names:
             return
 
+        for f in file_names:
+            base_f = get_file_name_with_extension(f)
+            if base_f in self.raw_upload_files_map:
+                self.modal(level="warn", msg=f"不允许上传重名的文件: {base_f}")
+                return
+            self.raw_upload_files_map[base_f] = f
+            self.raw_upload_list_wrapper.add_item(base_f)
+
+    # 点击计算：只触发校验的回调
+    def cal_baoxian_action(self):
+        if len(self.raw_upload_files_map) == 0:
+            self.modal(level="warn", msg="请先上传文件")
+            return
+        if self.start_run_time is not None:
+            self.modal(level="warn", msg="开始执行后无法重复执行，请先重置")
+            return
         params = {
             "stage": "check_upload",
-            "file_path_list": file_names,
+            "file_path_list": self.raw_upload_files_map.values(),
         }
         self.worker.add_params(params).start()
 
-        # 增加loading tip
-        self.tip_loading.set_titles(["上传文件校验.", "上传文件校验..", "上传文件校验..."]).show()
-
-        pass
 
     def custom_after_check_upload(self, result):
         is_success = result.get("is_success")
@@ -230,7 +253,7 @@ v1.1.4 完成该场景
         all_list.sort()
         self.done_f = [i for i in all_list if i not in this_file_list]
         self.this_f = [i for i in all_list if i in this_file_list]
-        self.file_list_wrapper.fill_data_with_color(
+        self.upload_list_wrapper.fill_data_with_color(
             ["✅" + f for f in self.done_f] + self.this_f
         )
         self.upload_file_path_map = upload_file_path_map
@@ -238,10 +261,7 @@ v1.1.4 完成该场景
         new_text = f"当前年份：{list(core_dict.keys())[0].year}，汇总计算 0/{len(core_dict)}个月度数据，平均耗时 --s"
         self.upload_info_text.setText(new_text)
 
-    def cal_baoxian_action(self):
-        if self.upload_file_path_map is None:
-            self.modal(level="warn", msg="请先上传核心团险数据、名称表、名称代码映射表")
-            return
+        # 准备计算的内容
 
         # 检查存在上个月的计算结果，逻辑如下
         """
@@ -251,7 +271,7 @@ v1.1.4 完成该场景
         last_year_month_obj = year_month_obj.sub_one_month()
         last_month_result = []
         if year_month_obj.month != 1:
-            for file in self.file_list_wrapper.get_data_as_list():
+            for file in self.upload_list_wrapper.get_data_as_list():
                 if last_year_month_obj.str_with_only_number in file:
                     last_month_result.append(file.lstrip("✅"))
                     break
@@ -284,9 +304,9 @@ v1.1.4 完成该场景
             f.write(json.dumps(self.config))
 
         # 设置展示：run
-        for ind, file in enumerate(self.file_list_wrapper.get_data_as_list()):
+        for ind, file in enumerate(self.upload_list_wrapper.get_data_as_list()):
             if year_month_obj.str_with_only_number in file:
-                self.file_list_wrapper.set_text_by_index(ind, "🏃" + file)
+                self.upload_list_wrapper.set_text_by_index(ind, "🏃" + file)
 
         # 增加loading tip
         self.tip_loading.set_titles(["计算.", "计算..", "计算..."]).show()
@@ -301,15 +321,15 @@ v1.1.4 完成该场景
         all_f: list = self.done_f + self.this_f
         # done
         index = all_f.index(target_file_name)
-        self.file_list_wrapper.set_text_by_index(
+        self.upload_list_wrapper.set_text_by_index(
             index,
             "✅" + target_file_name + f"\t{round(time.time()-self.last_run_time, 2)}s\t当月abc&非abc：{cal_excel_one_info.cur_abc_num} & {cal_excel_one_info.cur_other_num}\t截止当月abc&非abc：{cal_excel_one_info.max_abc_num} & {cal_excel_one_info.max_other_num}"
         )
 
         # run
-        t = self.file_list_wrapper.get_text_by_index(index+1)
+        t = self.upload_list_wrapper.get_text_by_index(index+1)
         if t is not None:
-            self.file_list_wrapper.set_text_by_index(index+1, "🏃" + t)
+            self.upload_list_wrapper.set_text_by_index(index+1, "🏃" + t)
 
         # 更新时间
         need_cal = len(self.this_f)
@@ -323,17 +343,17 @@ v1.1.4 完成该场景
         self.tip_loading.hide()
 
     def download_file_action(self):
-        if not self.file_list_wrapper.get_data_as_list():
+        if not self.upload_list_wrapper.get_data_as_list():
             self.modal(level="warn", msg="请先计算")
             return
-        selected = self.file_list_wrapper.get_selected_text()
+        selected = self.upload_list_wrapper.get_selected_text()
         if selected:
             file = selected[0]
             if "✅" not in file:
                 self.modal(level="warn", msg="文件未计算完成，无法下载")
                 return
         else:
-            file = self.file_list_wrapper.get_text_by_index(-1)
+            file = self.upload_list_wrapper.get_text_by_index(-1)
         file = file.strip("✅").split("\t")[0].strip()
         file_path = os.path.join(IMPORTANT_PATH, file)
         target_file_path = self.download_file_modal(file)
@@ -343,17 +363,17 @@ v1.1.4 完成该场景
         self.modal(level="info", msg="✅下载成功")
 
     def send_file_action(self):
-        if not self.file_list_wrapper.get_data_as_list():
+        if not self.upload_list_wrapper.get_data_as_list():
             self.modal(level="warn", msg="请先计算")
             return
-        selected = self.file_list_wrapper.get_selected_text()
+        selected = self.upload_list_wrapper.get_selected_text()
         if selected:
             file = selected[0]
             if "✅" not in file:
                 self.modal(level="warn", msg="文件未计算完成，无法发送")
                 return
         else:
-            file = self.file_list_wrapper.get_text_by_index(-1)
+            file = self.upload_list_wrapper.get_text_by_index(-1)
         file = file.strip("✅").split("\t")[0].strip()
         file_path = os.path.join(IMPORTANT_PATH, file)
 
@@ -374,7 +394,7 @@ v1.1.4 完成该场景
         )
         self.modal(level="tip", count_down=2, msg="✅发送成功(2秒后关闭)")
 
-    def double_click_to_open(self, file):
+    def double_click_to_open(self, index, file):
         if not file.startswith("✅"):
             self.modal(level="warn", msg="请等待执行完成后再打开")
             return
@@ -382,8 +402,18 @@ v1.1.4 完成该场景
         file_path = os.path.join(IMPORTANT_PATH, file)
         open_file_or_folder(file_path)
 
+    def right_click_menu_delete(self, index, item):
+        if self.start_run_time is not None:
+            self.modal(level="warn", msg="开始执行后无法删除文件")
+            return
+        self.raw_upload_list_wrapper.remove_item_by_index(index)
+        self.raw_upload_files_map.pop(item)
+
     def reset_all_action(self):
-        self.file_list_wrapper.clear()  # 上传的list
+        self.upload_list_wrapper.clear()  # 上传的list
+        self.raw_upload_list_wrapper.clear()
+        self.raw_upload_files_map = {}
+
         # 初始化信息：会被重置
         text = f"当前年份：--，汇总计算 --/--个月度数据，平均耗时 --s"
         self.upload_info_text.setText(text)
