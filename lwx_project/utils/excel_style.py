@@ -1,3 +1,5 @@
+import os
+import re
 import typing
 
 import xlwings as xw
@@ -8,6 +10,7 @@ SHEETS_TYPE = typing.List[SHEET_TYPE]
 
 class ExcelStyleValue:
     def __init__(self, excel_path, sheet_name_or_index=0, run_mute=False):
+        self.excel_path = excel_path
         self.app = xw.App(visible=not run_mute, add_book=False)
         self.wb = self.app.books.open(excel_path)
         self.sht = self.wb.sheets[sheet_name_or_index]
@@ -43,6 +46,107 @@ class ExcelStyleValue:
         if limit:
             self.sht.range(left_top, right_bottom).api.MergeCells = True
         return self
+
+    def update_text_shape(self, pattern2text: typing.Dict[str, str]):
+        """修改当前sheet下的文本框中的文字
+        pattern2text: 正则表达式 -> 修改的文字
+        """
+        for shape in self.sht.shapes:
+            try:
+                # 尝试读取文本（如果是文本框或包含文本的形状）
+                current_text = shape.text
+                for p, t in pattern2text.items():
+                    if re.match(p, current_text):
+                        shape.text = t
+            except Exception as e:
+                # 不是文本框（比如是图片、图表等），跳过
+                continue
+        return self
+
+    def get_style(self, cell):
+        obj = self.sht.range(cell)
+        return {
+            "bg_color": obj.color,  # 背景色
+            "font_color": obj.font.color,
+            "font_bold": obj.font.bold,
+            "font_italic": obj.font.italic,
+            "font_family": obj.font.name,
+            "font_size": obj.font.size,
+            "column_width": obj.column_width,
+            "row_height": obj.height,
+            "formula": obj.formula,
+            "number_format": obj.number_format,
+            "value": obj.value,
+            "raw_value": obj.raw_value,
+        }
+    # 样式
+    def set_style(self, range_text, bg_color, font_color, bold):
+        """
+        range_text: "A1:C10"  范围
+        bg_color: (255, 255, 255)  白色
+        font_color: (0, 0, 255)   黑色
+        bold: 是否加粗
+        """
+        rng = self.sht.range(range_text)
+
+        # 1. 设置背景色（RGB 或颜色名称）
+        rng.color = bg_color  # 浅红色 (R, G, B)
+        # 或使用十六进制（部分版本支持）：
+        # rng.color = "#FFC8C8"
+
+        # 2. 设置字体颜色
+        rng.font.color = font_color  # 蓝色
+
+        # 3. 设置字体加粗
+        rng.font.bold = bold
+        return self
+
+    def range_sort(self, col_num, range_text, desc=False):
+        """
+        手动排序：读取数据 → 按指定列排序 → 写回
+
+        :param col_num: 排序列在 range_text 中的位置（从1开始）
+        :param range_text: 排序范围，如 "A3:J25"
+        :param desc: False=升序，True=降序
+        """
+        # 1. 读取整个区域的值（二维列表）
+        rng = self.sht.range(range_text)
+        original_data = rng.value  # list of lists
+
+        # 处理单行情况（xlwings 返回一维列表）
+        if isinstance(original_data[0], (int, float, str, type(None))):
+            original_data = [original_data]
+
+        # 2. 提取排序列的值（col_num 从1开始 → 索引 col_num-1）
+        sort_col_index = col_num - 1
+        try:
+            sort_values = [row[sort_col_index] for row in original_data]
+        except IndexError:
+            raise ValueError(f"列号 {col_num} 超出范围，区域 {range_text} 最大列数为 {len(original_data[0])}")
+
+        # 3. 生成排序索引
+        # 使用 enumerate 保留原始行号，按值排序
+        indexed_rows = list(enumerate(sort_values))
+
+        # 定义排序 key：处理 None / 空值（放到最后）
+        def sort_key(item):
+            idx, val = item
+            # 将 None / 空字符串视为无穷大（排最后）
+            if val is None or val == "":
+                return (float('inf'), "")
+            # 如果是数字，直接比较；如果是字符串，转为小写
+            if isinstance(val, (int, float)):
+                return (val, "")
+            else:
+                return (str(val).lower(), val)
+
+        indexed_rows.sort(key=sort_key, reverse=desc)
+
+        # 4. 按排序后的索引重排所有行
+        sorted_data = [original_data[idx] for idx, _ in indexed_rows]
+
+        # 5. 写回 Excel
+        rng.value = sorted_data
 
     # 行操作：向下复制
     def copy_row_down(self, row_num: int, n=1, set_df=None, limit=True):
@@ -179,6 +283,19 @@ class ExcelStyleValue:
             self.batch_delete_sheet([old_sheet_name])
         return self
 
+    # sheet操作：新建
+    def new_sheet(self, sheet_name_or_index: SHEET_TYPE, before_name=None, after_name=None):
+        if before_name is None and after_name is None:
+            self.wb.sheets.add(sheet_name_or_index)
+            return self.wb.sheets[sheet_name_or_index]
+        elif before_name:
+            self.wb.sheets.add(sheet_name_or_index, before=self.wb.sheets[before_name])
+        elif after_name:
+            self.wb.sheets.add(sheet_name_or_index, after=self.wb.sheets[after_name])
+        self.sht = self.wb.sheets[sheet_name_or_index]
+        return self
+
+    # sheet操作：切换
     def switch_sheet(self, sheet_name_or_index: SHEET_TYPE):
         self.sht = self.wb.sheets[sheet_name_or_index]
         # 这里无法使用activate，需要excel可见
@@ -201,13 +318,76 @@ class ExcelStyleValue:
             self.wb.sheets[del_sheet_name].delete()
         return self
 
+    def batch_delete_sheet_except(self, sheet_name_or_index_list: typing.List[SHEET_TYPE]):
+        sheet_names = [sheet.name for sheet in self.wb.sheets]
+        not_del_sheets = []
+        for sheet_name_or_index in sheet_name_or_index_list:
+            if isinstance(sheet_name_or_index, int):
+                not_del_sheets.append(sheet_names[sheet_name_or_index])
+            else:
+                not_del_sheets.append(sheet_name_or_index)
+        for sheet_name in sheet_names:
+            if sheet_name not in set(not_del_sheets):
+                self.wb.sheets[sheet_name].delete()
+        return self
+
+
     def activate_sheet(self, sheet_name_or_index: SHEET_TYPE):
         """保存前可以修改激活的sheet到第一个，打开这个excel就是第一个了"""
         self.wb.sheets[sheet_name_or_index].activate()
         return self
 
+    # sheet操作：清空所有
+    def sheet_clear(self):  # 清空所有内容和格式
+        self.sht.clear()
+        return self
+
+    # sheet操作：仅清空内容，保留格式
+    def sheet_clear_contents(self):  # 只清空内容，保留格式
+        self.sht.clear_contents()
+        return self
+
+    # sheet操作：删除指定sheet
+    def del_sheet(self, sheet_name_or_index: SHEET_TYPE):
+        # 通过名称删除特定工作表
+        self.wb.sheets[sheet_name_or_index].delete()
+        return self
+
+    def sheet_copy_from_other_excel(self, other_excel_path: str = None, other_excel_sheet_name: str = None):
+        """将其他excel文件或者当前excel的某个sheet，拷贝到当前sheet"""
+        other_wb = self.wb
+        if other_excel_sheet_name is None:
+            other_wb = self.app.books.open(other_excel_path)
+        self.sheet_clear()
+        other_excel_sheet_name = other_excel_sheet_name or 0
+        used_range = other_wb.sheets[other_excel_sheet_name].used_range
+        # 如果源工作表有内容，则复制
+        if used_range is not None:
+            # 复制源数据到目标工作表的相同位置
+            self.sht.range(used_range.address).value = used_range.value
+        if other_excel_path:
+            other_wb.close()
+        return self
+
+    # sheet操作：保存成新的excel
+    def copy2new_excel(self, output_path):
+        app = xw.App(visible=False)  # visible=True 可看到 Excel 窗口
+        wb = app.books.add()  # 新建工作簿，默认有 Sheet1
+        sheet = wb.sheets[0]
+        used_range = self.sht.used_range
+        if used_range is not None:
+            sheet.range(used_range.address).value = used_range.value
+
+        # 保存为文件
+        wb.save(output_path)
+        wb.close()
+        app.quit()
+
+        return self
+
     def save(self, path: str = None):
         # 保存为新的Excel文件
+        self.excel_path = None
         if path is None:
             self.wb.save()
         else:

@@ -25,6 +25,30 @@ def make_zip(source_directory, output_filename):
     """将一个目录下的素有文件和子目录打包"""
     shutil.make_archive(output_filename, 'zip', source_directory)
 
+def make_zip_by_files(source_files, output_zip_path):
+    import zipfile
+
+    """
+    将指定的多个文件（或目录）打包成一个 ZIP 压缩文件
+
+    :param source_files: 要打包的文件/目录路径列表，如 ['a.txt', 'folder/', 'b.xlsx']
+    :param output_zip_path: 输出的 ZIP 文件路径，如 'output.zip'
+    """
+    with zipfile.ZipFile(output_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for item in source_files:
+            if os.path.isfile(item):
+                # 添加单个文件，保留原始文件名
+                zipf.write(item, arcname=os.path.basename(item))
+            elif os.path.isdir(item):
+                # 递归添加整个目录
+                for root, dirs, files in os.walk(item):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        # 计算在 ZIP 中的相对路径（保留目录结构）
+                        arcname = os.path.relpath(file_path, os.path.dirname(item))
+                        zipf.write(file_path, arcname=arcname)
+            else:
+                raise FileNotFoundError(f"文件或目录不存在: {item}")
 
 def get_file_name_without_extension(file_path):
     return os.path.splitext(os.path.basename(file_path))[0]
