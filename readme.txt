@@ -60,7 +60,9 @@
                 a.txt
                 main.exe
             只要a.txt和main.exe同级，那么main.exe中可以直接 with open("a.txt") 获取内容
-
-4. python触发excel的宏
-    win下用win32的包
-    mac下用xlwings包
+环境准备问题
+1. python3.7.9
+    python环境较老，无法使用uv自动管理python版本
+    高版本对pyqt5兼容不好（需要pyqt6）
+2. pip install openpyxl PyQt5 pyqt5-tools pandas playwright pyinstaller xlwings -i https://mirrors.aliyun.com/pypi/simple/
+3. pyinstaller .\main_win.spec --distpath=.

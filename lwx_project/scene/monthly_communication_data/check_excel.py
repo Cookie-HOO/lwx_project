@@ -23,6 +23,7 @@ from openpyxl import load_workbook
 import pandas as pd
 
 from lwx_project.scene.monthly_communication_data.const import DETAIL_PATH, IMPORTANT_PATH
+from lwx_project.utils.biz import core_tuanxian_get_month
 from lwx_project.utils.time_cost import time_cost
 
 UPLOAD_TYPE_OFFICER = "officer"
@@ -62,7 +63,7 @@ def check_excels(upload_file_list) -> (bool, str, typing.Optional[UploadInfo]):
     if len(detail_path_list) == 0:
         return False, "必须上传团险核心数据", None
     # 2.2 校验所有的年份一致
-    date_list = [get_month_from_detail_path(detail_path) for detail_path in detail_path_list]
+    date_list = [core_tuanxian_get_month(detail_path) for detail_path in detail_path_list]
     year_list = [d.year for d in date_list]
     month_list = [d.month for d in date_list]
     if len(set(year_list)) != 1:
@@ -129,63 +130,6 @@ def get_upload_type_py(upload_file_path: str) -> str:
     elif "人力数" in str(header_names):
         return UPLOAD_TYPE_OFFICER
     return ""
-
-@time_cost
-def get_month_from_detail_path(detail_path: str) -> datetime.date:
-    """
-    高效读取 Excel 文件前两行：
-    - 第一行：列名，查找「日期」列
-    - 第二行：第一行数据，提取日期值
-    返回 datetime.date 对象。
-    """
-    wb = None
-    try:
-        # 使用只读模式，极大降低内存和速度开销
-        wb = load_workbook(detail_path, read_only=True, data_only=True)
-        ws = wb.active
-        if ws is None:
-            raise ValueError("Excel 文件没有活动的工作表")
-
-        # 读取前两行
-        rows = []
-        for i, row in enumerate(ws.iter_rows(min_row=1, max_row=2, max_col=20)):
-            rows.append([cell.value for cell in row])
-            if i >= 1:  # 只读两行
-                break
-
-        if len(rows) == 0:
-            raise ValueError("Excel 文件为空")
-        if len(rows) == 1:
-            raise ValueError("Excel 文件只有列名，无数据行")
-
-        header = rows[0]
-        first_row = rows[1]
-
-        # 查找「日期」列索引
-        date_col_idx = None
-        for idx, col_name in enumerate(header):
-            if str(col_name).strip() == "日期":
-                date_col_idx = idx
-                break
-
-        if date_col_idx is None:
-            raise ValueError(f"未找到「日期」列，列名为: {header}")
-
-        # 获取第一个值
-        if date_col_idx >= len(first_row):
-            raise ValueError("「日期」列超出数据范围")
-        first_value = first_row[date_col_idx]
-        if first_value is None or not str(first_value).strip():
-            raise ValueError("「日期」列第一行为空")
-
-        date_str = str(first_value).strip()
-        return datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-
-    except Exception as e:
-        raise ValueError(f"无法读取 Excel 文件 '{detail_path}': {e}")
-    finally:
-        if wb is not None:
-            wb.close()
 
 
 if __name__ == '__main__':

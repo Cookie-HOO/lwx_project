@@ -55,6 +55,13 @@ def dedup_lines(text):
         deduped_lines.append(line)
     return "\n".join(deduped_lines)
 
+def can_convert2float(string)->bool:
+    try:
+        float(string)
+        return True
+    except ValueError:
+        return False
+
 if __name__ == '__main__':
     text1 = "nihao\nnihao\n123\n123\n你好\n你好"
     print(dedup_lines(text1))

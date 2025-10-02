@@ -5,47 +5,26 @@ import sys
 import time
 import typing
 
-import pandas as pd
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import QPushButton
 
 from lwx_project.client.base import BaseWorker, WindowWithMainWorker
 from lwx_project.client.const import UI_PATH
 from lwx_project.client.utils.date_widget import DateEditWidgetWrapper
-from lwx_project.client.utils.list_widget import ListWidgetWrapper
 from lwx_project.client.utils.table_widget import TableWidgetWrapper
-from lwx_project.const import PROJECT_PATH
 from lwx_project.scene.daily_baoxian import merge_result
-from lwx_project.scene.daily_baoxian.const import OLD_RESULT_PATH, CONFIG_PATH
+from lwx_project.scene.daily_baoxian.const import CONFIG_PATH, IMPORTANT_PATH
 from lwx_project.scene.daily_baoxian.vo import worker_manager, WorkerManager, BaoxianItem
-from lwx_project.scene.daily_baoxian.workers.bid_info_worker import BidInfoWorker
-from lwx_project.scene.daily_baoxian.workers.gov_buy_worker import GovBuyBaoxianItem, GovBuyWorker, gov_buy_worker
 from lwx_project.utils.browser import close_all_browser_instances, get_default_browser_bin_path
-from lwx_project.utils.file import copy_file
-from lwx_project.utils.mail import send_mail
 
 from lwx_project.utils.time_obj import TimeObj
 
-# from lwx_project.scene import product_name_match
-# from lwx_project.scene.product_name_match.const import *
 
-# from lwx_project.utils.conf import set_txt_conf, get_txt_conf
-# from lwx_project.utils.excel_checker import ExcelCheckerWrapper
-# from lwx_project.utils.excel_style import ExcelStyleValue
-# from lwx_project.utils.file import get_file_name_without_extension
 
 UPLOAD_REQUIRED_FILES = ["需匹配的产品"]  # 上传的文件必须要有
 
 
 class Worker(BaseWorker):
-    # custom_set_searched_gov_buy_baoxian_signal = pyqtSignal(GovBuyWorker)  # 自定义信号
-    # custom_set_collected_gov_buy_baoxian_signal = pyqtSignal(GovBuyWorker)  # 自定义信号
-    # custom_after_one_gov_buy_baoxian_done_signal = pyqtSignal(dict)  # 自定义信号
-
-    # custom_set_searched_bid_info_baoxian_signal = pyqtSignal(BidInfoWorker)  # 自定义信号
-    # custom_set_collected_bid_info_baoxian_signal = pyqtSignal(BidInfoWorker)  # 自定义信号
-    # custom_after_one_bid_info_baoxian_done_signal = pyqtSignal(dict)  # 自定义信号
 
     custom_after_one_baoxian_done_signal = pyqtSignal(dict)
     custom_set_searched_baoxian_signal = pyqtSignal(WorkerManager)
@@ -152,17 +131,19 @@ class MyDailyBaoxianClient(WindowWithMainWorker):
     之前收集的招标信息，用于融合
     每次搜索后会融合之前的信息
 
-❗auth.json
-    存储鉴权信息，主要是邮箱的登陆信息
-    格式：{"xx@xx.com": "授权码"}
-
 ❗🔧config.json
     使用方式：使用过程中的配置文件，自动记录，无需手动管理
+
+=========== 系统配置文件 ===========
+❗🔧auth.json
+    在data根路径下
+    使用方式：{"liwenxuan_0112@126.com": "token"} 的方式进行记录
 
 =========== 执行逻辑 ===========
 1. 在「中国政府采购网」搜索，支持：公开招标,竞争性谈判,竞争性磋商
 2. 在「中国招标投标公共服务平台」搜索，支持「公开招标」
-3. 重点收集：截止日期/金额/采购方
+3. 过滤25个特殊省市，过滤 "责任险", "责任保险", "第三者意外险"
+4. 重点收集：截止日期/预算金额/采购方名称
 
 =========== 注意事项 ===========
 1. 先检查日期，再点击搜索，默认是昨天
@@ -184,6 +165,15 @@ v1.1.3:
 - update: 去掉责任险（之前是去掉雇主责任险）
 - update: 预算最多保留四位小数
 - bugfix: 保存时会有空行
+
+v1.1.4
+- update: 增加对于「责任保险」的过滤
+- update: 增加青岛、大连、深圳的过滤
+- update: 今天如果是周一，默认从上周五开始搜索到昨天
+- update: 增加流标的检查
+- update: 搜索确认的信息优化：增加时间范围的提醒
+- update: 增加条目的行高
+- bugfix: 部分预算找到过长的信息
     """
 
     step1_help_info_text = """设置日期后，进行搜索，需要指定浏览器路径（会强制关闭所有打开的浏览器）"""
@@ -207,6 +197,8 @@ v1.1.3:
             reset_button: 重置当前内容的button
         """
         super(MyDailyBaoxianClient, self).__init__()
+        os.makedirs(IMPORTANT_PATH, exist_ok=True)
+
         uic.loadUi(UI_PATH.format(file="daily_baoxian.ui"), self)  # 加载.ui文件
         self.setWindowTitle("每日保险整理——By LWX")
         self.tip_loading = self.modal(level="loading", titile="加载中...", msg=None)
@@ -227,8 +219,12 @@ v1.1.3:
         self.init_browser()  # 初始化上次的执行路径和类型
 
         # 搜索保险的起止日期
-        self.baoxian_start_date_wrapper = DateEditWidgetWrapper(self.baoxian_start_date, init_date=TimeObj() - 1)
-        self.baoxian_end_date_wrapper = DateEditWidgetWrapper(self.baoxian_end_date, init_date=TimeObj() - 1)
+        today = TimeObj()
+        self.baoxian_end_date_wrapper = DateEditWidgetWrapper(self.baoxian_end_date, init_date=today - 1)
+        if today.weekday == "周一":  # 需要从上周五开始做到昨天
+            self.baoxian_start_date_wrapper = DateEditWidgetWrapper(self.baoxian_start_date, init_date=today - 3)  # -3是上周五
+        else:
+            self.baoxian_start_date_wrapper = DateEditWidgetWrapper(self.baoxian_start_date, init_date=today - 1)
 
         # 搜索保险的按钮和容器
         self.search_button.clicked.connect(self.search_baoxian)
@@ -281,8 +277,19 @@ v1.1.3:
 
     # 核心的入口函数
     def search_baoxian(self):
-        # 第一个网站搜索保险
-        check_yes = self.modal(level="check_yes", msg=f"继续将关闭所有{self.browser_selector.currentText()}浏览器，请确保所有浏览器上的工作已保存")
+        # 搜索保险
+        start_search_date_obj = self.baoxian_start_date_wrapper.get()
+        end_search_date_obj = self.baoxian_end_date_wrapper.get()
+        if start_search_date_obj > end_search_date_obj:
+            self.modal(level="warn", msg="开始日期不能大于结束日期")
+            return
+        if start_search_date_obj == end_search_date_obj and start_search_date_obj == (TimeObj()-1):
+            msg = "昨天"
+        elif TimeObj().weekday=="周一" and (start_search_date_obj + 3 == end_search_date_obj):
+            msg = "上周五到昨天"
+        else:
+            msg = f"{start_search_date_obj.date_str}到{end_search_date_obj.date_str}，共{end_search_date_obj - start_search_date_obj + 1}天"
+        check_yes = self.modal(level="check_yes", msg=f"将搜索{msg}的招标信息\n\n继续将关闭所有{self.browser_selector.currentText()}浏览器，请确保所有浏览器上的工作已保存")
         if not check_yes:
             return
         # 保存配置
@@ -375,23 +382,7 @@ v1.1.3:
                 "value": item.url,
             },
         ])
-        #
-        # self.collected_baoxian_table_wrapper.add_row_with_color([
-        #     item.province,
-        #     item.bid_type,
-        #     item.simple_title,
-        #     item.buyer_name,
-        #     item.budget,
-        #     item.get_bid_until,
-        #     item.platform + ":\n" + item.url,
-        #     item.publish_date,
-        #     item.title,
-        #     item.url,
-        #     item.detail,
-        #     "✅" if item.success else "❌",
-        # ],
-        #     # cell_widget_func=new_button
-        # )
+        self.collected_baoxian_table_wrapper.set_row_height(-1, 50)
 
     def custom_after_one_retry_baoxian_done(self, res):
         """每一条baoxian item 收集完成后的回调：记录到table容器中
@@ -444,3 +435,4 @@ v1.1.3:
         self.status_text = ""
         self.has_saved=None
         self.modal("info", title="Success", msg="重置成功")
+        return None

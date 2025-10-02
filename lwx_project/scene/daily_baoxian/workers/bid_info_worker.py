@@ -11,13 +11,15 @@ from lwx_project.scene.daily_baoxian.vo import BaoxianItem, Worker
 from lwx_project.utils.browser import init_local_browser, click_item, close_all_browser_instances
 from playwright.sync_api import sync_playwright
 
-from lwx_project.utils.strings import dedup_lines, is_any_digits
+from lwx_project.utils.strings import dedup_lines, is_any_digits, can_convert2float
 
 PLATFORM = "中国招标投标公共服务平台"
 
 class BidInfoBaoxianItem(BaoxianItem):
-    def __init__(self, title, tag_list):
+    def __init__(self, title, tag_list=None):
         super().__init__(platform=PLATFORM, title=title, bid_type="招标公告")
+        if tag_list is None:
+            return
         self._province, self._bid_type, _, _publish_date, *_ = tag_list
 
         # publish_date:
@@ -56,9 +58,9 @@ class BidInfoBaoxianItem(BaoxianItem):
             self.parse_detail("招\s*标\s*人\s*[:：]\s*(.*?)\n").strip(":").strip("：").strip() or \
             self.parse_detail("采\s*购\s*人\s*信\s*息\s*[:：]?\s*名\s*称\s*[:：]?\s*(.*?)\n").strip(":").strip("：").strip() or \
             self.parse_detail("采\s*购\s*人\s*信\s*息\s*[:：]?.*?名\s*称\s*[:：]?\s*(.*?)地址").strip(":").strip("：").strip() or \
-            self.parse_detail("招\s*标\s*人\s*为[:：]?\s*(.*?)[。，]").strip(":").strip("：").strip() or \
-            self.parse_detail("采\s*购\s*人\s*为[:：]?\s*(.*?)[。，]").strip(":").strip("：").strip() or \
-            self.parse_detail("采\s*购\s*人\s*[:：]?\n\s*(.*?)[。，]", from_bottom_to_top=True).strip(":").strip("：").strip()
+            self.parse_detail("招\s*标\s*人\s*为[:：]?\s*(.*?)[\n。，]").strip(":").strip("：").strip() or \
+            self.parse_detail("采\s*购\s*人\s*为[:：]?\s*(.*?)[\n。，]").strip(":").strip("：").strip() or \
+            self.parse_detail("采\s*购\s*人\s*[:：]?\n\s*(.*?)[\n。，]", from_bottom_to_top=True).strip(":").strip("：").strip()
         buyer_name = buyer_name.replace("\n", "")
         return buyer_name
 
@@ -85,7 +87,7 @@ class BidInfoBaoxianItem(BaoxianItem):
         except ValueError:
             if len(parsed_budget.split("\n")) > 2 and len(parsed_budget) > 50:  # 是一个长字符串
                 return ""
-            return origin_parsed_budget  # 解析失败返回最原始的内容
+            return ""  # 解析失败返回空，由后面进行兜底
         return parsed_budget
 
     def get_default_budget_(self):
@@ -177,7 +179,11 @@ class BidInfoBaoxianItem(BaoxianItem):
         for pattern in patterns:
             result = self.get_budget_with_re(pattern, text)
             if result:
-                return result
+                if can_convert2float(result):
+                    return result
+                num = self.find_budget_by_number([""], result)
+                if num:
+                    return num
         return ""
         #
         # parsed_budget = self.parse_detail("项\s*目\s*预\s*算\s*为\s*[:：]?\s*(.*?)\n")
@@ -224,36 +230,8 @@ class BidInfoBaoxianItem(BaoxianItem):
         if budget:
             return budget
         text = self.detail.replace("\n", "").replace(" ", "")
-        keywords = ["项目预算", "预算金额", "预估金额", "资金来源", "预算", "最高限价"]
-        budget = ""
-        is_wan = False  # 是否是万元
-        is_precent = False
-        threshold = 20
-        stop = False
-        for keyword in keywords:
-            if stop:
-                break
-            position = text.find(keyword)
-            if position == -1:
-                continue
-            stop = True
-            target_text = text[position: position + threshold + len(keyword)]
-            for pointer_text in target_text:
-                if pointer_text.isdigit() or pointer_text == "." or pointer_text == ",":
-                    budget += pointer_text
-                elif pointer_text == "万":
-                    is_wan = True
-                    break
-                elif pointer_text == "%":
-                    is_precent = True
-                    break
-        if stop and budget and not is_precent:
-            if is_wan:
-                parsed_budget = str(float(budget.replace(",", "")))
-            else:
-                parsed_budget = str(float(budget.replace(",", "")) / 10000)
-            return parsed_budget
-        return ""
+        keywords = ["项目预算", "预算金额", "预估金额", "资金来源", "预算", "最高限价", "预估规模"]
+        return self.find_budget_by_number(keywords, text)
 
     def get_default_get_bid_until(self):
         """

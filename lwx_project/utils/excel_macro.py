@@ -1,6 +1,3 @@
-import xlwings as xw
-
-
 def call_excel_macro_by_xlwings(excel_path, macro_names=None, marco_names_with_args=None, run_mute=False):
     """
     :param excel_path:
@@ -11,6 +8,8 @@ def call_excel_macro_by_xlwings(excel_path, macro_names=None, marco_names_with_a
     :param run_mute:
     :return:
     """
+    import xlwings as xw
+
     # 打开Excel
     app = xw.App(visible=not run_mute, add_book=False)
     # 打开含有宏的工作簿

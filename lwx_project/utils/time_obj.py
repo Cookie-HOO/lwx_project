@@ -75,6 +75,8 @@ class TimeObj:
             return TimeObj(raw_time=self.time_obj - datetime.timedelta(days=other))
         elif isinstance(other, (datetime.datetime, datetime.date)):
             return (self.time_obj - other).days
+        elif isinstance(other, TimeObj):
+            return (self.time_obj - other.time_obj).days
 
     def __add__(self, other) -> typing.Union['TimeObj', int]:
         if isinstance(other, int):
@@ -164,3 +166,16 @@ class TimeObj:
     @property
     def is_first_day_of_base_month(self) -> bool:
         return self.year == self.base_time_obj.year and self.month == self.base_time_obj.month and self.day == 1
+
+    @property
+    def weekday(self) -> str:
+        week_day_map = {
+            0: "周一",
+            1: "周二",
+            2: "周三",
+            3: "周四",
+            4: "周五",
+            5: "周六",
+            6: "周日",
+        }
+        return week_day_map[self.time_obj.weekday()]
