@@ -34,6 +34,7 @@ class BaoxianItem:
         self.get_bid_until: str = ""
 
         self.success = True
+        self.is_from_png = False  # 是否从截图ocr中来
 
         self._buyer_name = ""
 

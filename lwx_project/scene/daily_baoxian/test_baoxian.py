@@ -2019,17 +2019,17 @@ shillqth@hljtobacco.com
     ]
 
     # 用url cases 获取detail
-    # url_cases = [
-    #     # "https://ctbpsp.com/#/bulletinDetail?uuid=0a3fb9a4-36f4-4c6c-9aab-c6a75a99259c&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=1&tenderAgency=",
-    #     # "https://ctbpsp.com/#/bulletinDetail?uuid=08ea12ce-6b34-40a1-a793-132a1621733c&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=",
-    #     # """https://ctbpsp.com/#/bulletinDetail?uuid=cc8fc774-311a-4eeb-a9bc-e3f9c7b05bb8&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
-    #     # """https://ctbpsp.com/#/bulletinDetail?uuid=788496d8-4571-442a-b50e-7a9d696bcbee&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
-    #     # """http://www.ccgp.gov.cn/cggg/dfgg/gkzb/202509/t20250918_25377926.htm""",  # 本项目预算金额为 663600.00 元
-    #     # """https://ctbpsp.com/#/bulletinDetail?uuid=68c6125f-bfc9-403f-a451-2391e3cdc414&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=1&tenderAgency=""",
-    #     """https://ctbpsp.com/#/bulletinDetail?uuid=d9cc4407-cae7-4bbd-a643-b39c67c2530f&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
-    # ]
-    # for case in url_cases:
-    #     test_baoxian(url=case)
+    url_cases = [
+        # "https://ctbpsp.com/#/bulletinDetail?uuid=0a3fb9a4-36f4-4c6c-9aab-c6a75a99259c&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=1&tenderAgency=",
+        # "https://ctbpsp.com/#/bulletinDetail?uuid=08ea12ce-6b34-40a1-a793-132a1621733c&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=",
+        # """https://ctbpsp.com/#/bulletinDetail?uuid=cc8fc774-311a-4eeb-a9bc-e3f9c7b05bb8&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
+        # """https://ctbpsp.com/#/bulletinDetail?uuid=788496d8-4571-442a-b50e-7a9d696bcbee&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
+        # """http://www.ccgp.gov.cn/cggg/dfgg/gkzb/202509/t20250918_25377926.htm""",  # 本项目预算金额为 663600.00 元
+        # """https://ctbpsp.com/#/bulletinDetail?uuid=68c6125f-bfc9-403f-a451-2391e3cdc414&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=1&tenderAgency=""",
+        """https://ctbpsp.com/#/bulletinDetail?uuid=43b3309d-df21-4a27-8df5-a7742339b42c&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
+    ]
+    for case in url_cases:
+        test_baoxian(url=case)
 
 
     # 用cases 进行回归测试

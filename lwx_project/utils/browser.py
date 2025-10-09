@@ -47,7 +47,10 @@ def init_local_browser(p, browser_bin_path, headless=False, port=None, user_data
 
     # 3. 启动 browser
     print(f"正在启动 browser: {' '.join(command)}")
-    subprocess.Popen(command)
+    try:
+        subprocess.Popen(command)
+    except Exception as e:
+        raise ValueError(f"启动 browser 失败，请检查路径设置")
     time.sleep(3)  # 等待浏览器启动
 
     # 4. 连接到 Chrome

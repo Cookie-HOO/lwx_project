@@ -3,14 +3,16 @@
 https://ctbpsp.com/
 """
 import datetime
+import os.path
 import random
 import time
 import typing
 
+from lwx_project.const import ALL_DATA_PATH
 from lwx_project.scene.daily_baoxian.vo import BaoxianItem, Worker
-from lwx_project.utils.browser import init_local_browser, click_item, close_all_browser_instances
-from playwright.sync_api import sync_playwright
+from lwx_project.utils.browser import click_item
 
+from lwx_project.utils.picture import concat_pictures, ocr_from_bytes_pil, crop_margins
 from lwx_project.utils.strings import dedup_lines, is_any_digits, can_convert2float
 
 PLATFORM = "中国招标投标公共服务平台"
@@ -432,13 +434,16 @@ class BidInfoWorker(Worker):
                 detail_url = None
                 final_page = None  # 用于保存成功加载的页面
 
-                for _ in range(5):  # 最多尝试2次点击
+                for _ in range(5):  # 最多尝试5次点击
                     with page.expect_popup() as popup_info:
                         baoxian_pointer.locator("p").click()  # 打开新页面
 
                     new_page = popup_info.value
-                    new_page.wait_for_load_state("load", timeout=10000)
-
+                    try:
+                        new_page.wait_for_load_state("load", timeout=20000)  # 等待验证码的加载
+                    except Exception:
+                        new_page.close()
+                        continue
                     # 处理人机验证
                     print("等待人机验证")
                     while self.has_captcha(new_page):
@@ -474,6 +479,7 @@ class BidInfoWorker(Worker):
                     final_page.close()  # 提取完成后关闭
 
                     baoxian_item.set_url(detail_url).set_detail(content_text)
+                    baoxian_item.is_from_png = content_text.startswith("截图识别")
                     baoxian_item.success = not page_error
                 else:
                     # 所有尝试都失败
@@ -550,7 +556,14 @@ class BidInfoWorker(Worker):
                 iframe_locator.locator("#viewer").first.wait_for(timeout=5000)  # 等待最多5秒
                 content_text = iframe_locator.locator("#viewer").inner_text()
                 if len(content_text) == 0:
-                    page_error = True
+                    png_bytes = BidInfoWorker.screen_shot_baoxian_item(
+                        page, iframe_locator,
+                        # path=os.path.join(ALL_DATA_PATH, "tmp.png")
+                    )
+                    png_bytes = crop_margins(png_bytes, left=50, right=50)
+                    content_text = ocr_from_bytes_pil(png_bytes)
+                    content_text = "截图识别：" + content_text
+
             except Exception as e:
                 content_text = "获取失败"
                 page_error = True
@@ -575,6 +588,35 @@ class BidInfoWorker(Worker):
             print("等待登陆")
             time.sleep(3)
         print("登陆成功")
+
+    @staticmethod
+    def screen_shot_baoxian_item(page, iframe_locator, path=None):
+        # 尝试截图
+        page_num_locator = iframe_locator.locator("#pageNumber")  # input
+        # 关闭二维码，方便截图
+        try:
+            close_qr_button = page.locator("div.loadingqrCode span.closeQr")
+            close_qr_button.click()
+        except Exception:
+            pass
+        # 找到最大页，一页一页截图
+        max_num = int(page_num_locator.get_attribute("max") or "0")
+        # png_bytes
+        png_bytes_list = []
+
+        for i in range(1, max_num + 1):
+            page_num_locator.fill(str(i))
+            page_num_locator.press("Enter")
+            time.sleep(0.5)  # 截图等待
+            canvas_wrapper_locator = iframe_locator.locator(f'div[data-page-number="{i}"]')
+            canvas_locator = canvas_wrapper_locator.locator("canvas")
+            png_bytes_list.append(canvas_locator.screenshot())
+
+        pic = concat_pictures(png_bytes_list)
+        if path:
+            with open(os.path.join(ALL_DATA_PATH, "tmp.png"), "wb") as f:
+                f.write(pic)
+        return pic
 
     @staticmethod
     def has_captcha(page):

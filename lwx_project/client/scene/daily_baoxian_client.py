@@ -174,6 +174,11 @@ v1.1.4
 - update: 搜索确认的信息优化：增加时间范围的提醒
 - update: 增加条目的行高
 - bugfix: 部分预算找到过长的信息
+
+v1.1.5
+- feature: OCR
+- update: 浏览器路径错误的友好报错
+- update: 增加对bid网站超时的时间和尝试次数
     """
 
     step1_help_info_text = """设置日期后，进行搜索，需要指定浏览器路径（会强制关闭所有打开的浏览器）"""
@@ -280,6 +285,10 @@ v1.1.4
         # 搜索保险
         start_search_date_obj = self.baoxian_start_date_wrapper.get()
         end_search_date_obj = self.baoxian_end_date_wrapper.get()
+        browser_bin_path = self.browser_bin_path_text.text()
+        if not os.path.exists(browser_bin_path):
+            self.modal(level="warn", msg="浏览器路径不存在，请检查路径")
+            return
         if start_search_date_obj > end_search_date_obj:
             self.modal(level="warn", msg="开始日期不能大于结束日期")
             return
@@ -293,7 +302,7 @@ v1.1.4
         if not check_yes:
             return
         # 保存配置
-        self.config["browser_bin_path"] = self.browser_bin_path_text.text()
+        self.config["browser_bin_path"] = browser_bin_path
         self.config["browser_type"] = self.browser_selector.currentText()
         with open(CONFIG_PATH, "w") as f:
             f.write(json.dumps(self.config))
@@ -301,7 +310,7 @@ v1.1.4
             "stage": "search_baoxian",
             "start_date": self.baoxian_start_date_wrapper.get().date_str,
             "end_date": self.baoxian_end_date_wrapper.get().date_str,
-            "browser_bin_path": self.browser_bin_path_text.text(),
+            "browser_bin_path": browser_bin_path,
             "browser_type": self.browser_selector.currentText(),   # Chrome ｜ Edge
         }
         self.worker.add_params(params).start()
@@ -326,16 +335,22 @@ v1.1.4
         self.collected_baoxian_items.append(baoxian_item)
 
     def custom_after_one_baoxian_done(self, res):
-        item = res.get("baoxian_item")
+        item: BaoxianItem = res.get("baoxian_item")
 
         # 【提示信息】：获取状态、是否选择
         # 【关键信息】：详情链接（复制）、项目名称、采购单位名称、预算/限价（万元）、获取招标文件的截止日期、地区
         # 【参考信息】：原标题、发布日期、招采平台、采购方式、详情信息、链接
         buyer_name_prefix = f"（{item.key_city}）" if item.key_city else ""
+
+        if item.is_from_png:
+            flag = "🖼️"
+        else:
+            flag = "✅" if item.success else "❌"
+
         self.collected_baoxian_table_wrapper.add_rich_widget_row([
             {
                 "type": "readonly_text",  # 获取状态
-                "value": "✅" if item.success else "❌",
+                "value": flag,
             }, {
                 "type": "checkbox",  # 是否选择
                 "value": item.success and bool(item.simple_title or item.publish_date or item.get_bid_until),
