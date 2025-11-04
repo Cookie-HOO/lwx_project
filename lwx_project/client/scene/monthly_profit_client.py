@@ -7,7 +7,7 @@ from PyQt5.QtCore import pyqtSignal
 from lwx_project.client.base import BaseWorker, WindowWithMainWorker
 from lwx_project.client.const import UI_PATH
 from lwx_project.client.utils.list_widget import ListWidgetWrapper
-from lwx_project.scene.monthly_profit.const import IMPORTANT_PATH
+from lwx_project.scene.monthly_profit.const import IMPORTANT_PATH, IMPORTANT_FILES
 
 from lwx_project.scene.monthly_profit.main import check_and_run
 from lwx_project.scene.monthly_profit.utils import build_result_zip_path, build_result_zip_name
@@ -78,10 +78,6 @@ class MyMonthlyProfitClient(WindowWithMainWorker):
     在data根路径下
     使用方式：{"liwenxuan_0112@126.com": "token"} 的方式进行记录
 
-❗🔧excel_tool.xlsm
-    在data根路径下
-    使用方式：提供了截图的宏，可以对指定文件的指定sheet截图
-
 =========== 注意事项 ===========
 1. 上传的文件中，只四个文件或五个文件（可选的上月）
 2. 如果要做一月的，那么模板复制出来后，会清空上月的数据（两个sheet）
@@ -93,6 +89,9 @@ v1.1.5 完成该场景
 - 上传(可多次)
 - 计算、融合
 - 下载、发送
+
+v1.1.5
+- feature: 增加对该场景下important文件的截图描述
     """
 
     def __init__(self):
@@ -114,6 +113,10 @@ v1.1.5 完成该场景
         uic.loadUi(UI_PATH.format(file="monthly_profit.ui"), self)  # 加载.ui文件
         self.setWindowTitle("每月利润完成情况汇总计算——By LWX")
         self.tip_loading = self.modal(level="loading", titile="加载中...", msg=None)
+        self.help_file_button.clicked.connect(lambda: self.modal(
+            level="img_gallery", msg=None, imgs_path=[i[1] for i in IMPORTANT_FILES], captions=[i[0] for i in IMPORTANT_FILES]
+        ).show_gallery())
+
         # 调整初始化布局
         self.upload_vs_cal_spliter.setSizes([30,70])
         # 初始化帮助信息

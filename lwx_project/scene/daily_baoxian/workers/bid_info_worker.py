@@ -12,7 +12,6 @@ from lwx_project.const import ALL_DATA_PATH
 from lwx_project.scene.daily_baoxian.vo import BaoxianItem, Worker
 from lwx_project.utils.browser import click_item
 
-from lwx_project.utils.picture import concat_pictures, ocr_from_bytes_pil, crop_margins
 from lwx_project.utils.strings import dedup_lines, is_any_digits, can_convert2float
 
 PLATFORM = "中国招标投标公共服务平台"
@@ -388,6 +387,9 @@ class BidInfoWorker(Worker):
         time.sleep(1)
 
         # 选择类型
+        while self.has_captcha_index(page):
+            time.sleep(2)
+            print("首页验证码")
         page.get_by_placeholder("请选择业务类型").click()
         time.sleep(2)
         page.locator("ul > li > span:text('招标公告')").click()
@@ -479,7 +481,6 @@ class BidInfoWorker(Worker):
                     final_page.close()  # 提取完成后关闭
 
                     baoxian_item.set_url(detail_url).set_detail(content_text)
-                    baoxian_item.is_from_png = content_text.startswith("截图识别")
                     baoxian_item.success = not page_error
                 else:
                     # 所有尝试都失败
@@ -532,7 +533,6 @@ class BidInfoWorker(Worker):
         title = new_page.locator("div.title_name")
         title_text = title.inner_text()
         new_page.close()
-        time.sleep(random.uniform(20, 30))
         return title_text, content_text
 
     @staticmethod
@@ -546,23 +546,15 @@ class BidInfoWorker(Worker):
         # 等待看是否报错
         iframe_locator = page.frame_locator("iframe.pdf-viewer")
         page_error = False
-        try:
-            iframe_locator.locator("span#errorMessage").first.wait_for(timeout=3000)  # 等待最多3秒
+        try:  # 定位错误信息
+            iframe_locator.locator("span#errorMessage").first.wait_for(timeout=10000)  # 等待最多10秒
             content_text = iframe_locator.locator("span#errorMessage").inner_text()
-            page_error = True
+            page_error = True  # 定位到说明报错
         except Exception:
             # 等待 iframe 内部的 #viewer 元素出现
             try:
-                iframe_locator.locator("#viewer").first.wait_for(timeout=5000)  # 等待最多5秒
+                iframe_locator.locator("#viewer").first.wait_for(timeout=30000)  # 等待最多30秒
                 content_text = iframe_locator.locator("#viewer").inner_text()
-                if len(content_text) == 0:
-                    png_bytes = BidInfoWorker.screen_shot_baoxian_item(
-                        page, iframe_locator,
-                        # path=os.path.join(ALL_DATA_PATH, "tmp.png")
-                    )
-                    png_bytes = crop_margins(png_bytes, left=50, right=50)
-                    content_text = ocr_from_bytes_pil(png_bytes)
-                    content_text = "截图识别：" + content_text
 
             except Exception as e:
                 content_text = "获取失败"
@@ -590,7 +582,8 @@ class BidInfoWorker(Worker):
         print("登陆成功")
 
     @staticmethod
-    def screen_shot_baoxian_item(page, iframe_locator, path=None):
+    def screen_shot_baoxian_item(page, iframe_locator, path=None) -> typing.List[bytes]:
+        """针对图片渲染的条目进行截图，目前废弃"""
         # 尝试截图
         page_num_locator = iframe_locator.locator("#pageNumber")  # input
         # 关闭二维码，方便截图
@@ -607,16 +600,20 @@ class BidInfoWorker(Worker):
         for i in range(1, max_num + 1):
             page_num_locator.fill(str(i))
             page_num_locator.press("Enter")
-            time.sleep(0.5)  # 截图等待
+            # time.sleep(0.5)  # 截图等待
             canvas_wrapper_locator = iframe_locator.locator(f'div[data-page-number="{i}"]')
             canvas_locator = canvas_wrapper_locator.locator("canvas")
+            bounding = canvas_locator.bounding_box()
+            print(f"Page {i} canvas size: {bounding['width']} x {bounding['height']}")
+            canvas_locator.wait_for(state="visible", timeout=5000)
+            page.wait_for_timeout(300)  # 确保绘制完成
             png_bytes_list.append(canvas_locator.screenshot())
 
-        pic = concat_pictures(png_bytes_list)
-        if path:
-            with open(os.path.join(ALL_DATA_PATH, "tmp.png"), "wb") as f:
-                f.write(pic)
-        return pic
+        # pic = concat_pictures(png_bytes_list)
+        # if path:
+        #     with open(path, "wb") as f:
+        #         f.write(pic)
+        return png_bytes_list
 
     @staticmethod
     def has_captcha(page):
@@ -631,6 +628,20 @@ class BidInfoWorker(Worker):
             if "ptcha" in (iframe_one_obj.get_attribute("src") or ""):
                 return True
         return False
+
+    @staticmethod
+    def has_captcha_index(page):
+        """首页有时候也有验证码"""
+        try:
+            page.locator("div#captcha").first.wait_for(state="attached", timeout=10000)
+            captcha = page.locator("div#captcha").inner_text()
+            if "请完成安全验证" in captcha:
+                return True
+        except Exception:
+            return False
+        return False
+
+
 
 
 

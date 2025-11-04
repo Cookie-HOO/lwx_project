@@ -1,9 +1,15 @@
+import platform
 import typing
 
-from tesserocr import PyTessBaseAPI, PSM, OEM
-
-from PIL import Image, ImageEnhance
 import io
+
+
+def get_default_tessdata_path():
+    if platform.system() == "Darwin":  # 测试mac下是否也可以直接用static的那个path
+        return "/opt/homebrew/share/tessdata"
+    elif platform.system() == "Windows":
+        return r"D:\Programming\Tesseract-OCR\tessdata"
+    return "不支持的类型或系统"
 
 def concat_pictures(picture_bytes_list: typing.List[bytes]) -> bytes:
     """
@@ -11,6 +17,8 @@ def concat_pictures(picture_bytes_list: typing.List[bytes]) -> bytes:
     :param picture_bytes_list: 图片字节列表 (List[bytes])
     :return: 拼接后的图片字节 (bytes)，若输入为空则返回 None
     """
+    from PIL import Image
+
     if not picture_bytes_list:
         raise ValueError("picture_bytes_list must not be empty")
 
@@ -50,6 +58,8 @@ def crop_margins(png_bytes, left=0, top=0, right=0, bottom=0) -> bytes:
     """
     裁掉四周指定像素（left=裁掉左边多少像素）
     """
+    from PIL import Image
+
     img = Image.open(io.BytesIO(png_bytes))
     width, height = img.size
 
@@ -71,17 +81,30 @@ def crop_margins(png_bytes, left=0, top=0, right=0, bottom=0) -> bytes:
 
 
 def ocr_from_bytes_pil(image_bytes: bytes, lang='chi_sim') -> str:
+    from tesserocr import PyTessBaseAPI, PSM, OEM
+    import pytesseract
+
     """
     使用 tesserocr 对图片字节进行 OCR 识别（支持中英文）
     :param image_bytes: 图片字节数据 (bytes)
     :param lang: Tesseract 语言，如 'chi_sim+eng'
     :return: 识别出的文本
     """
+    from PIL import Image
     # 1. 从字节加载图像
     img = Image.open(io.BytesIO(image_bytes))
 
     # 5. 正确初始化语言 + 设置 PSM/OEM
-    tessdata_path = "/opt/homebrew/share/tessdata"
+    pytesseract.pytesseract.tesseract_cmd = r'D:\Programming\Tesseract-OCR\tesseract.exe'
+
+    # 使用高精度模型（确保 tessdata_best 已放入 tessdata 目录）
+    text = pytesseract.image_to_string(
+        img,
+        lang=lang,
+        config='--oem 1 --psm 3'  # OEM 1 = LSTM only（推荐）
+    )
+    return text
+    tessdata_path = get_default_tessdata_path()
 
     api = PyTessBaseAPI(path=tessdata_path, lang=lang, oem=1)
     try:
@@ -89,9 +112,11 @@ def ocr_from_bytes_pil(image_bytes: bytes, lang='chi_sim') -> str:
         api.SetPageSegMode(PSM.SINGLE_BLOCK)
         api.SetImage(img)
         return api.GetUTF8Text().strip()
+    except Exception as e:
+        print(e)
+        return ""
     finally:
         api.End()
-        return ""
 
 
 def ocr_from_path(image_path: str, lang='chi_sim', left=0, top=0, right=0, buttom=0) -> str:
@@ -114,6 +139,6 @@ def ocr_from_path(image_path: str, lang='chi_sim', left=0, top=0, right=0, butto
         return ""
 
 if __name__ == '__main__':
-    p = "/Users/bytedance/Projects/py/lwx_project/data/tmp.png"
+    p = r"D:\project\lwx_project\data\tmp.png"
     r = ocr_from_path(p, left=50, right=50)
     print(r)

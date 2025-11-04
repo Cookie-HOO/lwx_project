@@ -119,3 +119,21 @@ def sheet_capture2(excel_path, sheet_name_or_index, img_path, padding=None, run_
     }
 
     call_excel_macro(EXCEL_TOOL_PATH, marco_names_with_args=macro_with_args, run_mute=run_mute)
+
+
+def sheet_capture3(excel_path, sheet_name_or_index, img_path, padding=None, value_range="", run_mute=False):
+    """
+    sheet_capture1 要求被截图的excel中必须有截图的宏
+    sheet_capture2 可以用提前写好的excel文件的宏 截图
+    sheet_capture3 在2的基础上增加对任意区域的截图
+
+    value_range 字符串表示的区域，如 A1:B2
+    """
+    MACRO_NAME = "截图指定文件2"
+    padding = padding or [0, 0, 0, 0]
+    file_name = get_file_name_with_extension(EXCEL_TOOL_PATH)
+    macro_with_args = {
+        f"{file_name}!{MACRO_NAME}": [excel_path, sheet_name_or_index, img_path, *padding, value_range]
+    }
+
+    call_excel_macro(EXCEL_TOOL_PATH, marco_names_with_args=macro_with_args, run_mute=run_mute)

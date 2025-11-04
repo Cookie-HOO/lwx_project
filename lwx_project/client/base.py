@@ -10,7 +10,8 @@ from PyQt5.QtGui import QPixmap
 
 from lwx_project.client.const import *
 from lwx_project.client.utils.exception import ClientWorkerException
-from lwx_project.client.utils.message_widget import TipWidgetWithCountDown, TipWidgetWithLoading, MyQMessageBox
+from lwx_project.client.utils.message_widget import TipWidgetWithCountDown, TipWidgetWithLoading, MyQMessageBox, \
+    TipWidgetWithImgGallery
 from lwx_project.utils.file import get_file_name_without_extension, copy_file, get_file_name_with_extension, make_zip
 from lwx_project.utils.logger import logger_sys_error
 from lwx_project.utils.time_obj import TimeObj
@@ -178,6 +179,12 @@ class BaseWindow(QMainWindow):
         elif level == "loading":
             tip_with_loading = TipWidgetWithLoading()
             return tip_with_loading
+        elif level == "img_gallery":
+            imgs = kwargs.get("imgs") or []  # 支持bytes的list
+            imgs_path = kwargs.get("imgs_path") or []  # 支持bytes的list
+            captions = kwargs.get("captions") or []  # 支持bytes的list
+            img_gallery = TipWidgetWithImgGallery(imgs=imgs, imgs_path=imgs_path, captions=captions)
+            return img_gallery
 
     # 上传
     def upload_file_modal(

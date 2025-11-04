@@ -39,6 +39,16 @@ class FastExcelReader:
     def close(self):
         self.wb.close()
 
+    def sheets(self) -> typing.List[str]:
+        return self.wb.sheetnames
+
+    def check_sheets(self, required_sheets: typing.List[str]) -> (bool, str):
+        sheets = self.sheets()
+        for sheet_name in required_sheets:
+            if sheet_name not in sheets:
+                return False, sheet_name
+        return True, ""
+
     def get_excel_column_count(self, max_col_num=None, row_num=1) -> int:
         """获取 Excel 文件中连续非空列的数量（从 A1 开始向右，遇到第一个空单元格即停止）。
 

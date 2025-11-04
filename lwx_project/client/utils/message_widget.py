@@ -1,8 +1,10 @@
 import os
 import time
+import typing
 
-from PyQt5.QtGui import QMovie, QIcon, QColor
-from PyQt5.QtWidgets import QMessageBox, QWidget, QLabel, QVBoxLayout, QTextBrowser, QDialog
+from PyQt5.QtGui import QMovie, QIcon, QColor, QImage, QPixmap
+from PyQt5.QtWidgets import QMessageBox, QWidget, QLabel, QVBoxLayout, QTextBrowser, QDialog, QSizePolicy, QPushButton, \
+    QHBoxLayout
 from PyQt5.QtCore import QTimer, QTime, Qt
 
 from lwx_project.const import STATIC_PATH
@@ -215,6 +217,153 @@ class TipWidgetWithLoading(QDialog):
         self.titles = titles
         return self
 
+
+import typing
+import os
+from PyQt5.QtWidgets import (
+    QDialog, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QSizePolicy
+)
+from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtCore import Qt
+
+
+class TipWidgetWithImgGallery(QDialog):
+    """展示一个modal，可以上下（左右）切换当前图片
+    1. 接收图片的bytes的list
+    2. 点击左右可以切换
+    3. 展示总共几个，当前是第几个
+    4. 可选：每张图下方显示对应的文字说明（caption）
+    """
+
+    def __init__(
+        self,
+        imgs: typing.List[bytes] = None,
+        imgs_path: typing.List[str] = None,
+        captions: typing.List[str] = None,
+        width=None,
+        height=None
+    ):
+        super().__init__()
+        imgs = imgs or []
+        if not imgs:
+            if not imgs_path:
+                raise ValueError("必须提供 imgs 或 imgs_path")
+            for img_path in imgs_path:
+                if not os.path.exists(img_path):
+                    raise FileNotFoundError(img_path)
+                with open(img_path, "rb") as f:
+                    imgs.append(f.read())
+
+        self.imgs = imgs
+        self.total = len(imgs)
+        if self.total == 0:
+            raise ValueError("imgs 不能为空")
+
+        # 处理 captions
+        if captions is not None:
+            if len(captions) != self.total:
+                raise ValueError("captions 长度必须与图片数量一致")
+            self.captions = captions
+        else:
+            self.captions = [""] * self.total  # 默认为空字符串
+
+        self.current_index = 0
+
+        self.setWindowTitle("图片预览")
+        self.setModal(True)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowCloseButtonHint)
+
+        # 图片显示区域
+        self.image_label = QLabel()
+        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.image_label.setMinimumSize(width or 600, height or 800)
+
+        # 文字说明（caption）
+        self.caption_label = QLabel()
+        self.caption_label.setAlignment(Qt.AlignCenter)
+        self.caption_label.setWordWrap(True)
+        self.caption_label.setStyleSheet("font-size: 14px; color: gray; padding: 8px;")
+
+        # 底部信息：当前/总数
+        self.info_label = QLabel()
+        self.info_label.setAlignment(Qt.AlignCenter)
+
+        # 按钮
+        self.prev_button = QPushButton("◀ 上一张")
+        self.next_button = QPushButton("下一张 ▶")
+
+        self.prev_button.clicked.connect(self.show_prev)
+        self.next_button.clicked.connect(self.show_next)
+
+        # 布局
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.prev_button)
+        button_layout.addWidget(self.next_button)
+
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(self.image_label)
+        main_layout.addWidget(self.caption_label)  # 新增：文字说明
+        main_layout.addWidget(self.info_label)
+        main_layout.addLayout(button_layout)
+
+        self.setLayout(main_layout)
+
+        # 初始显示第一张
+        self.update_display()
+
+    def update_display(self):
+        """根据 current_index 更新图片、文字和信息"""
+        img_bytes = self.imgs[self.current_index]
+        qimg = QImage.fromData(img_bytes)
+        if qimg.isNull():
+            self.image_label.setText("无法加载图片")
+            self.caption_label.setText("")
+        else:
+            pixmap = QPixmap.fromImage(qimg)
+            self.image_label.setPixmap(pixmap.scaled(
+                self.image_label.size(),
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation
+            ))
+            self.caption_label.setText(self.captions[self.current_index])
+
+        self.info_label.setText(f"{self.current_index + 1} / {self.total}")
+
+        # 更新按钮状态
+        self.prev_button.setEnabled(self.current_index > 0)
+        self.next_button.setEnabled(self.current_index < self.total - 1)
+
+    def show_prev(self):
+        if self.current_index > 0:
+            self.current_index -= 1
+            self.update_display()
+
+    def show_next(self):
+        if self.current_index < self.total - 1:
+            self.current_index += 1
+            self.update_display()
+
+    def keyPressEvent(self, event):
+        """支持键盘左右键切换"""
+        if event.key() == Qt.Key_Left:
+            self.show_prev()
+        elif event.key() == Qt.Key_Right:
+            self.show_next()
+        elif event.key() == Qt.Key_Escape:
+            self.close()
+        else:
+            super().keyPressEvent(event)
+
+    def resizeEvent(self, event):
+        """窗口大小变化时重新缩放图片"""
+        if self.imgs:
+            self.update_display()
+        super().resizeEvent(event)
+
+    def show_gallery(self):
+        """方便调用的接口，类似 exec_()"""
+        return self.exec_()
 
 # 测试代码
 # from PyQt5.QtWidgets import QApplication, QDialog, QLabel, QVBoxLayout

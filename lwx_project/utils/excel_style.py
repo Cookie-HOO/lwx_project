@@ -242,6 +242,64 @@ class ExcelStyleValue:
             self.sht.range((1, col_num)).api.EntireColumn.Delete()
         return self
 
+    # 图操作：save
+    def save_pic(self, pic_id: int, pic_path: str):
+        try:
+            shape = self.sht.shapes[pic_id]
+        except KeyError:
+            raise ValueError(f"未找到名称为 '{pic_id}' 的图片。请确保图片已命名且存在于当前工作表。")
+
+        shape.api.CopyPicture()
+
+        from PIL import ImageGrab
+        image = ImageGrab.grabclipboard()
+        if image is None:
+            raise RuntimeError("未能从剪贴板获取图片，请确保运行在 Windows 且 Excel 可访问剪贴板。")
+
+        os.makedirs(os.path.dirname(pic_path), exist_ok=True)
+        image.save(pic_path)
+        return self
+
+    # 图操作：get
+    def get_pictures(self):
+        """
+        列出当前工作表中所有图片（Picture 类型）的名称、类型和位置信息。
+        仅适用于 Windows（依赖 .api 属性）。
+
+        返回格式：
+        [
+            {
+                "name": "Picture 1",
+                "type": "Picture",  # 或 "LinkedPicture" 等
+                "left": 100.0,      # 点（points）
+                "top": 50.0,
+                "width": 200.0,
+                "height": 150.0
+            },
+            ...
+        ]
+        """
+        pictures = []
+        for shape in self.sht.shapes:
+            try:
+                # 获取底层 COM 对象（Windows only）
+                api = shape.api
+                shape_type = api.Type  # 13 = msoPicture
+                # Excel 中图片的 Type 常为 13 (msoPicture) 或 11 (msoLinkedPicture)
+                if shape_type == 3:  # linked picture or embedded picture
+                    info = {
+                        "name": shape.name,
+                        "left": api.Left,
+                        "top": api.Top,
+                        "width": api.Width,
+                        "height": api.Height
+                    }
+                    pictures.append(info)
+            except Exception:
+                # 跳过非图形对象或无法访问的形状
+                continue
+        return pictures
+
     # sheet操作：重命名
     def rename_sheet(self, new_sheet_name: str):
         self.sht.name = new_sheet_name
@@ -281,6 +339,50 @@ class ExcelStyleValue:
             self.sht = self.wb.sheets[0]
         if del_old:
             self.batch_delete_sheet([old_sheet_name])
+        return self
+
+    def copy_sheet_from_other_excel(
+            self,
+            other_excel_path: str = None,
+            other_sheet_name_or_index: SHEET_TYPE = 0,
+    ):
+        """
+        从另一个 Excel 文件（或当前文件）的指定 sheet 中，
+        **仅复制单元格的值** 到当前 sheet 的对应区域，
+        **完全保留当前 sheet 的原有格式、合并单元格、列宽等结构**。
+
+        :param other_excel_path: 其他 Excel 文件路径。若为 None，则从当前工作簿复制。
+        :param other_sheet_name_or_index: 要复制的 sheet 名称或索引（默认第一个）。
+        :return: self
+        """
+        source_wb = None
+        try:
+            if other_excel_path is None:
+                source_wb = self.wb
+                source_sheet = self.wb.sheets[other_sheet_name_or_index]
+            else:
+                source_wb = self.app.books.open(other_excel_path)
+                source_sheet = source_wb.sheets[other_sheet_name_or_index]
+
+            # 获取源 sheet 的 used range
+            used_range = source_sheet.used_range
+            if used_range is None:
+                print("源 sheet 为空，无内容可复制。")
+                return self
+
+            # 获取值（二维列表或单值）
+            values = used_range.value
+
+            # 目标区域：相同地址（如 A1:Z100）
+            target_range = self.sht.range(used_range.address)
+
+            # 只写入值，不触碰格式！
+            target_range.value = values
+
+        finally:
+            if other_excel_path is not None and source_wb is not None:
+                source_wb.close()
+
         return self
 
     # sheet操作：新建

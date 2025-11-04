@@ -60,7 +60,7 @@
                 a.txt
                 main.exe
             只要a.txt和main.exe同级，那么main.exe中可以直接 with open("a.txt") 获取内容
-4. OCR
+4. OCR(win效果较差)
     技术选型：tesserocr：是tesseract的动态连接库的调用，对打包友好
     mac:
         brew install tesseract-lang  # 安装语言
@@ -68,7 +68,9 @@
         指定路径：/opt/homebrew/share/tessdata
     windows
         安装whl：https://github.com/simonflueckiger/tesserocr-windows_build/releases?spm=a2ty_o01.29997173.0.0.5897c921TGDppk
-        pip install tesserocr-xxx.whl
+            pip install tesserocr-xxx.whl
+        下载语言包
+            https://github.com/tesseract-ocr/tessdata/raw/main/chi_sim.traineddata
     打包时会自动收集win下的ocr支持
 
 
