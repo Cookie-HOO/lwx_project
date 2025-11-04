@@ -39,6 +39,16 @@ class FastExcelReader:
     def close(self):
         self.wb.close()
 
+    def sheets(self) -> typing.List[str]:
+        return self.wb.sheetnames
+
+    def check_sheets(self, required_sheets: typing.List[str]) -> (bool, str):
+        sheets = self.sheets()
+        for sheet_name in required_sheets:
+            if sheet_name not in sheets:
+                return False, sheet_name
+        return True, ""
+
     def get_excel_column_count(self, max_col_num=None, row_num=1) -> int:
         """获取 Excel 文件中连续非空列的数量（从 A1 开始向右，遇到第一个空单元格即停止）。
 
@@ -67,7 +77,7 @@ class FastExcelReader:
             return col_num - 1
 
 
-    def check_excel_row(self, row_num, required_value_list: list, max_col_num=None) -> (typing.Optional[int], list):
+    def check_excel_row(self, row_num, required_value_list: list, max_col_num=None) -> (bool, list):
         max_col_num = max_col_num or self.MAX_COL_NUM
         required_value_list_copy = required_value_list[:]
         col_num = 1
@@ -91,6 +101,19 @@ class FastExcelReader:
         col_letter = get_column_letter(col_num)
         cell_value = self.ws[f"{col_letter}{row_num}"].value
         return cell_value
+
+    def check_cell_value(self, row_num, col_num, cell_value) -> bool:
+        v = self.get_cell_value(row_num, col_num)
+        cell_value = cell_value or ""
+        if v is None:
+            return isinstance(cell_value, str) and cell_value == ""
+
+        if isinstance(v, str):
+            if v.strip() == cell_value.strip():
+                return True
+
+
+        return False
 
     def posit_col_in_row_by_value(self, row_num, value, max_col_num=None) -> int:
         """根据具体内容，在特定行定位列, 返回列号col_num"""

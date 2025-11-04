@@ -1,0 +1,17 @@
+import os
+
+from lwx_project.const import ALL_DATA_PATH, STATIC_PATH
+
+DATA_PATH = os.path.join(ALL_DATA_PATH, "monthly_profit")
+IMPORTANT_PATH = os.path.join(DATA_PATH, "important")
+
+TEMPLATE_FILE_NAME_PREFIX = "利润计算表模板"
+TEMPLATE_FILE_NAME_SUFFIX = ".xlsx"
+
+TEMPLATE_PATH = os.path.join(IMPORTANT_PATH, "模板.xlsx")
+
+SCENE_IMPORTANT_PIC_PATH = os.path.join(STATIC_PATH, "scene_important_pic", "monthly_profit")
+
+IMPORTANT_FILES = [
+    ("模板.xlsx，存储计算公式，数值无所谓", os.path.join(SCENE_IMPORTANT_PIC_PATH, "模板.png")),
+]

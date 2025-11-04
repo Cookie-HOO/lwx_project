@@ -11,7 +11,8 @@ from lwx_project.client.const import UI_PATH
 from lwx_project.client.utils.list_widget import ListWidgetWrapper
 from lwx_project.client.utils.table_widget import TableWidgetWrapper
 from lwx_project.scene.monthly_communication_data.check_excel import check_excels, UploadInfo
-from lwx_project.scene.monthly_communication_data.const import CONFIG_PATH, IMPORTANT_PATH, BEFORE_CAL_FILE, CALED_FILE
+from lwx_project.scene.monthly_communication_data.const import CONFIG_PATH, IMPORTANT_PATH, BEFORE_CAL_FILE, CALED_FILE, \
+    IMPORTANT_FILES
 from lwx_project.scene.monthly_communication_data.main import cal_and_merge
 from lwx_project.utils.file import copy_file, get_file_name_with_extension, open_file_or_folder
 from lwx_project.utils.mail import send_mail
@@ -115,6 +116,9 @@ v1.1.4
 - update: 执行中展示优化 🏃✅
 - update: 上传后不校验，点击计算后校验+执行
 - update: 增加校验逻辑
+
+v1.1.5
+- feature: 增加对该场景下important文件的截图描述
     """
 
     def __init__(self):
@@ -151,6 +155,9 @@ v1.1.4
         # 初始化帮助信息
         self.help_info_button.clicked.connect(lambda: self.modal(level="info", msg=self.help_info_text, width=800, height=400))
         self.release_info_button.clicked.connect(lambda: self.modal(level="info", msg=self.release_info_text))
+        self.help_file_button.clicked.connect(lambda: self.modal(
+            level="img_gallery", msg=None, imgs_path=[i[1] for i in IMPORTANT_FILES], captions=[i[0] for i in IMPORTANT_FILES]
+        ).show_gallery())
 
         # 设置默认的保险代码配置
         try:

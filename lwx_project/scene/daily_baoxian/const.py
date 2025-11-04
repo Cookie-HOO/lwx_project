@@ -1,7 +1,7 @@
 # 中国省市信息
 import os.path
 
-from lwx_project.const import ALL_DATA_PATH
+from lwx_project.const import ALL_DATA_PATH, STATIC_PATH
 
 PROVINCES = [
     # 23 省
@@ -64,3 +64,11 @@ IMPORTANT_PATH = os.path.join(DATA_PATH, "important")
 OLD_RESULT_PATH = os.path.join(IMPORTANT_PATH, "近期团险招标信息一览表.xlsx")
 CONFIG_PATH = os.path.join(IMPORTANT_PATH, "config.json")
 AREA_CODE_PATH = os.path.join(IMPORTANT_PATH, "区划统计表.csv")
+
+TARGET_PROVINCE_LIST = "北京、重庆、江苏、黑龙江、浙江、上海、湖南、安徽、河北、山东、江西、福建、厦门、广东、四川、辽宁、湖北、陕西、山西、宁波、广西、河南"
+
+SCENE_IMPORTANT_PIC_PATH = os.path.join(STATIC_PATH, "scene_important_pic", "daily_baoxian")
+IMPORTANT_FILES = [
+    ("区划统计表.csv: 寻找区划信息，从邮箱获得", os.path.join(SCENE_IMPORTANT_PIC_PATH, "区划统计表.png")),
+    ("近期团险招标信息一览表.xlsx: 上次做完的招标信息", os.path.join(SCENE_IMPORTANT_PIC_PATH, "近期团险招标信息一览表.png")),
+]

@@ -4,7 +4,7 @@ import time
 import typing
 
 from lwx_project.scene.daily_baoxian.area_data import find_city_for_buyer_name
-from lwx_project.scene.daily_baoxian.const import PROVINCES_ABBR, PROVINCES
+from lwx_project.scene.daily_baoxian.const import PROVINCES_ABBR, PROVINCES, TARGET_PROVINCE_LIST
 from lwx_project.utils.browser import init_local_browser, close_all_browser_instances
 
 from playwright.sync_api import sync_playwright
@@ -68,7 +68,21 @@ class BaoxianItem:
         # 增加地级市
         province, key_city = find_city_for_buyer_name(self.province,self.buyer_name,self.title)
         self.key_city = key_city
-        self.province = self.province or province
+
+        # 设置和过滤
+        if key_city:
+            if key_city in ["大连市", "青岛市", "深圳市"]:  # 这三个特殊城市需要删除
+                self.default_available = False
+                self.not_available_reason = f"属于{key_city}，不符合要求"
+            # 一个特殊的逻辑：苏州的话就写苏州，而不是江苏
+            if key_city == "苏州市":
+                self.province = "苏州"
+        elif province:
+            province_simple = province[:2] if province[:2] != "黑龙" else province[:3]
+            if province_simple not in TARGET_PROVINCE_LIST:  # 如果不是目标省份需要删除（再次检查）
+                self.default_available = False
+                self.not_available_reason = f"属于{province_simple}，不符合要求"
+            self.province = province_simple  # 优先使用解析出来的省
 
         # 项目流标
         if self.detail.replace("\n", "").replace(" ", "") == "经评审，无有效投标人，本项目流标。":
@@ -381,13 +395,12 @@ class Worker:
         """
         检查所有条目，给符合条件的设置属性 default_available
         1. 省市名称符合要求：以下22个之一
-            北京、重庆、江苏、黑龙江、浙江、上海、湖南、安徽、河北、山东、江西、福建、厦门、广东、四川、辽宁、湖北、陕西、山西、宁波、广西、河南、大连、青岛、深圳
+            北京、重庆、江苏、黑龙江、浙江、上海、湖南、安徽、河北、山东、江西、福建、厦门、广东、四川、辽宁、湖北、陕西、山西、宁波、广西、河南
         2. 标题中不能含有「责任险」、「第三者意外险」 字样
         """
-        target_province_list = "北京、重庆、江苏、黑龙江、浙江、上海、湖南、安徽、河北、山东、江西、福建、厦门、广东、四川、辽宁、湖北、陕西、山西、宁波、广西、河南、大连、青岛、深圳"
         omit_baoxian_list = ["责任险", "责任保险", "第三者意外险"]
         # 1. 省市名称符合条件
-        if baoxian_item.province not in target_province_list:
+        if baoxian_item.province not in TARGET_PROVINCE_LIST:
             baoxian_item.default_available = False
             baoxian_item.not_available_reason = f"{baoxian_item.province} 不属于25个目标省市之一"
             return False

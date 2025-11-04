@@ -13,9 +13,9 @@ from lwx_project.client.const import UI_PATH
 from lwx_project.client.utils.date_widget import DateEditWidgetWrapper
 from lwx_project.client.utils.table_widget import TableWidgetWrapper
 from lwx_project.scene.daily_baoxian import merge_result
-from lwx_project.scene.daily_baoxian.const import CONFIG_PATH, IMPORTANT_PATH
+from lwx_project.scene.daily_baoxian.const import CONFIG_PATH, IMPORTANT_PATH, IMPORTANT_FILES
 from lwx_project.scene.daily_baoxian.vo import worker_manager, WorkerManager, BaoxianItem
-from lwx_project.utils.browser import close_all_browser_instances, get_default_browser_bin_path
+from lwx_project.utils.browser import close_all_browser_instances, get_default_browser_bin_path, clear_browser_data
 
 from lwx_project.utils.time_obj import TimeObj
 
@@ -61,6 +61,7 @@ class Worker(BaseWorker):
 
 
             # 确保检查登录的浏览器实例已完全关闭
+            clear_browser_data()  # 可选：清除之前的浏览器数据，比如登录态等
             close_all_browser_instances(browser_type)
             time.sleep(2)  # 等待进程关闭
 
@@ -174,6 +175,19 @@ v1.1.4
 - update: 搜索确认的信息优化：增加时间范围的提醒
 - update: 增加条目的行高
 - bugfix: 部分预算找到过长的信息
+
+v1.1.5
+- feature: 增加对该场景下important文件的截图描述
+- update: 浏览器路径错误的友好报错
+- update: 增加对bid网站超时的时间和尝试次数
+- update: 省市优先使用采购人的信息
+- update: 特殊逻辑：苏州显示苏州而不是江苏
+- bugfix: 大连、青岛、深圳的删除
+
+v1.1.6
+- feature: bid网站首页的验证码检测（等待人工）
+- update: 增加打开详情页的超时时间
+- update: 每次开始前清理 .browser_data
     """
 
     step1_help_info_text = """设置日期后，进行搜索，需要指定浏览器路径（会强制关闭所有打开的浏览器）"""
@@ -207,6 +221,9 @@ v1.1.4
         self.release_info_button.clicked.connect(lambda: self.modal(level="info", msg=self.release_info_text))
         self.step1_help_info_button.clicked.connect(lambda: self.modal(level="info", msg=self.step1_help_info_text))
         # self.demo_button.hide()  # todo 演示功能先隐藏
+        self.help_file_button.clicked.connect(lambda: self.modal(
+            level="img_gallery", msg=None, imgs_path=[i[1] for i in IMPORTANT_FILES], captions=[i[0] for i in IMPORTANT_FILES]
+        ).show_gallery())
 
         # 设置默认路径
         try:
@@ -280,6 +297,10 @@ v1.1.4
         # 搜索保险
         start_search_date_obj = self.baoxian_start_date_wrapper.get()
         end_search_date_obj = self.baoxian_end_date_wrapper.get()
+        browser_bin_path = self.browser_bin_path_text.text()
+        if not os.path.exists(browser_bin_path):
+            self.modal(level="warn", msg="浏览器路径不存在，请检查路径")
+            return
         if start_search_date_obj > end_search_date_obj:
             self.modal(level="warn", msg="开始日期不能大于结束日期")
             return
@@ -293,7 +314,7 @@ v1.1.4
         if not check_yes:
             return
         # 保存配置
-        self.config["browser_bin_path"] = self.browser_bin_path_text.text()
+        self.config["browser_bin_path"] = browser_bin_path
         self.config["browser_type"] = self.browser_selector.currentText()
         with open(CONFIG_PATH, "w") as f:
             f.write(json.dumps(self.config))
@@ -301,7 +322,7 @@ v1.1.4
             "stage": "search_baoxian",
             "start_date": self.baoxian_start_date_wrapper.get().date_str,
             "end_date": self.baoxian_end_date_wrapper.get().date_str,
-            "browser_bin_path": self.browser_bin_path_text.text(),
+            "browser_bin_path": browser_bin_path,
             "browser_type": self.browser_selector.currentText(),   # Chrome ｜ Edge
         }
         self.worker.add_params(params).start()
@@ -326,12 +347,15 @@ v1.1.4
         self.collected_baoxian_items.append(baoxian_item)
 
     def custom_after_one_baoxian_done(self, res):
-        item = res.get("baoxian_item")
+        item: BaoxianItem = res.get("baoxian_item")
+        if not item.default_available:  # 如果不符合要求，不及逆行统计
+            return
 
         # 【提示信息】：获取状态、是否选择
         # 【关键信息】：详情链接（复制）、项目名称、采购单位名称、预算/限价（万元）、获取招标文件的截止日期、地区
         # 【参考信息】：原标题、发布日期、招采平台、采购方式、详情信息、链接
         buyer_name_prefix = f"（{item.key_city}）" if item.key_city else ""
+
         self.collected_baoxian_table_wrapper.add_rich_widget_row([
             {
                 "type": "readonly_text",  # 获取状态
@@ -363,7 +387,7 @@ v1.1.4
                 "type": "editable_text",
                 "value": item.province,
             }, {  # 参考信息：原标题
-                "type": "readonly_text",
+                "type": "editable_text",
                 "value": item.title,
             }, {  # 参考信息：发布日期
                 "type": "readonly_text",
@@ -430,7 +454,7 @@ v1.1.4
     def reset(self):
         if self.worker_manager and self.worker_manager.running:
             return self.modal(level="warn", msg="运行中，无法重置，请等待执行完成")
-        self.collected_baoxian_table_wrapper.clear_content()
+        self.collected_baoxian_table_wrapper.clear()
         self.set_status_empty()
         self.status_text = ""
         self.has_saved=None

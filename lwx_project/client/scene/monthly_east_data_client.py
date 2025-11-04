@@ -11,7 +11,7 @@ from lwx_project.client.utils.list_widget import ListWidgetWrapper
 from lwx_project.scene.monthly_east_data.cal_excel import CalExcelOneInfo
 from lwx_project.scene.monthly_east_data.check_excel import check_excels
 from lwx_project.scene.monthly_east_data.const import CONFIG_PATH, IMPORTANT_PATH, TEMPLATE_FILE_NAME_PREFIX, \
-    TEMPLATE_FILE_NAME_SUFFIX
+    TEMPLATE_FILE_NAME_SUFFIX, IMPORTANT_FILES
 from lwx_project.scene.monthly_east_data.main import cal_and_merge
 from lwx_project.utils.file import copy_file, open_file_or_folder, get_file_name_with_extension
 from lwx_project.utils.mail import send_mail
@@ -117,6 +117,9 @@ v1.1.4 完成该场景
 - 配置、上传(可多次)，允许上传多个核心团险数据表
 - 计算、融合
 - 指定月份下载、发送
+
+v1.1.5
+- feature: 增加对该场景下important文件的截图描述
     """
 
     def __init__(self):
@@ -147,6 +150,9 @@ v1.1.4 完成该场景
         self.help_info_button.clicked.connect(
             lambda: self.modal(level="info", msg=self.help_info_text, width=800, height=400))
         self.release_info_button.clicked.connect(lambda: self.modal(level="info", msg=self.release_info_text))
+        self.help_file_button.clicked.connect(lambda: self.modal(
+            level="img_gallery", msg=None, imgs_path=[i[1] for i in IMPORTANT_FILES], captions=[i[0] for i in IMPORTANT_FILES]
+        ).show_gallery())
 
         # 设置默认的保险代码配置
         try:

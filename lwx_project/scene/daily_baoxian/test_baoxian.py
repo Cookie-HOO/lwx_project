@@ -2,6 +2,7 @@ from lwx_project.scene.daily_baoxian.vo import worker_manager
 
 from lwx_project.scene.daily_baoxian.workers.gov_buy_worker import gov_buy_worker, GovBuyBaoxianItem
 from lwx_project.scene.daily_baoxian.workers.bid_info_worker import bid_info_worker, BidInfoBaoxianItem
+from lwx_project.utils.browser import get_default_browser_bin_path
 
 worker_manager.add_worker(gov_buy_worker)
 worker_manager.add_worker(bid_info_worker)
@@ -26,7 +27,8 @@ def test_baoxian(url, platform=None, detail=None):
             return baoxian_item
 
     platform = platform_1 if "ctbpsp" in url else platform_2
-    worker_manager.init_browser("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+
+    worker_manager.init_browser(get_default_browser_bin_path("chrome"))
     worker_manager.check_env()
     title, detail = worker_manager.get_for_title_and_detail(
         platform=platform,
@@ -2019,17 +2021,20 @@ shillqth@hljtobacco.com
     ]
 
     # 用url cases 获取detail
-    # url_cases = [
-    #     # "https://ctbpsp.com/#/bulletinDetail?uuid=0a3fb9a4-36f4-4c6c-9aab-c6a75a99259c&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=1&tenderAgency=",
-    #     # "https://ctbpsp.com/#/bulletinDetail?uuid=08ea12ce-6b34-40a1-a793-132a1621733c&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=",
-    #     # """https://ctbpsp.com/#/bulletinDetail?uuid=cc8fc774-311a-4eeb-a9bc-e3f9c7b05bb8&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
-    #     # """https://ctbpsp.com/#/bulletinDetail?uuid=788496d8-4571-442a-b50e-7a9d696bcbee&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
-    #     # """http://www.ccgp.gov.cn/cggg/dfgg/gkzb/202509/t20250918_25377926.htm""",  # 本项目预算金额为 663600.00 元
-    #     # """https://ctbpsp.com/#/bulletinDetail?uuid=68c6125f-bfc9-403f-a451-2391e3cdc414&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=1&tenderAgency=""",
-    #     """https://ctbpsp.com/#/bulletinDetail?uuid=d9cc4407-cae7-4bbd-a643-b39c67c2530f&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
-    # ]
-    # for case in url_cases:
-    #     test_baoxian(url=case)
+    url_cases = [
+        # "https://ctbpsp.com/#/bulletinDetail?uuid=0a3fb9a4-36f4-4c6c-9aab-c6a75a99259c&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=1&tenderAgency=",
+        # "https://ctbpsp.com/#/bulletinDetail?uuid=08ea12ce-6b34-40a1-a793-132a1621733c&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=",
+        # """https://ctbpsp.com/#/bulletinDetail?uuid=cc8fc774-311a-4eeb-a9bc-e3f9c7b05bb8&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
+        # """https://ctbpsp.com/#/bulletinDetail?uuid=788496d8-4571-442a-b50e-7a9d696bcbee&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
+        # """http://www.ccgp.gov.cn/cggg/dfgg/gkzb/202509/t20250918_25377926.htm""",  # 本项目预算金额为 663600.00 元
+        # """https://ctbpsp.com/#/bulletinDetail?uuid=68c6125f-bfc9-403f-a451-2391e3cdc414&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=1&tenderAgency=""",
+        # """https://ctbpsp.com/#/bulletinDetail?uuid=43b3309d-df21-4a27-8df5-a7742339b42c&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=""",
+        """https://ctbpsp.com/#/bulletinDetail?uuid=6187a152-a9d2-4121-9f19-c8547252c130&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency=
+""",
+        # """https://ctbpsp.com/#/bulletinDetail?uuid=6187a152-a9d2-4121-9f19-c8547252c130&inpvalue=%E6%84%8F%E5%A4%96%E4%BC%A4%E5%AE%B3&dataSource=0&tenderAgency="""
+    ]
+    for case in url_cases:
+        test_baoxian(url=case)
 
 
     # 用cases 进行回归测试

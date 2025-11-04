@@ -6,6 +6,7 @@ from lwx_project.client.const import UI_PATH, STATIC_FILE_PATH
 from lwx_project.client.scene.daily_baoxian_client import MyDailyBaoxianClient
 from lwx_project.client.scene.monthly_communication_data_client import MyMonthlyCommunicationDataClient
 from lwx_project.client.scene.monthly_east_data_client import MyMonthlyEastDataClient
+from lwx_project.client.scene.monthly_profit_client import MyMonthlyProfitClient
 
 
 # from lwx_project.client.scene.activity_rate import MyActivityRateClient
@@ -24,6 +25,7 @@ class MyClient(QMainWindow):
         self.main_tab.addTab(MyDailyBaoxianClient(), '每日保险整理')
         self.main_tab.addTab(MyMonthlyCommunicationDataClient(), '每月同业交流数据汇总计算')
         self.main_tab.addTab(MyMonthlyEastDataClient(), '每月east数据汇总计算')
+        self.main_tab.addTab(MyMonthlyProfitClient(), '每月利润完成情况汇总计算')
         # self.main_tab.addTab(MyActivityRateClient(), '活动率画图')
         # self.main_tab.addTab(MyContributionClient(), '贡献率计算')
         # self.main_tab.addTab(MyProductNameMatchClient(), '产品名称匹配')

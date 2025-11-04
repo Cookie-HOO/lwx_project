@@ -9,7 +9,7 @@ user_data_dir = os.path.join(ALL_DATA_PATH, ".browser_data")
 if not os.path.exists(user_data_dir):
     os.makedirs(user_data_dir)
 
-def init_local_browser(p, browser_bin_path, headless=False, port=None, user_data_dir_suffix=None):
+def init_local_browser(p, browser_bin_path, headless=False, port=None):
     """
     关闭所有现有Chrome实例，然后启动一个新的实例并连接。
     支持 Windows 和 macOS。
@@ -27,10 +27,10 @@ def init_local_browser(p, browser_bin_path, headless=False, port=None, user_data
     port = port or 9222
     # 使用临时目录作为用户数据目录，避免与现有浏览器配置冲突
     _user_data_dir = user_data_dir
-    if user_data_dir_suffix:
-        _user_data_dir = os.path.join(ALL_DATA_PATH, f".browser_data_{user_data_dir_suffix}")
-        if not os.path.exists(_user_data_dir):
-            os.makedirs(_user_data_dir)
+    # if user_data_dir_suffix:
+    #     _user_data_dir = os.path.join(ALL_DATA_PATH, f".browser_data_{user_data_dir_suffix}")
+    #     if not os.path.exists(_user_data_dir):
+    #         os.makedirs(_user_data_dir)
 
     # browser_bin_path = get_default_browser_bin_path(browser_type)
     # if "不支持" in browser_bin_path:
@@ -47,7 +47,10 @@ def init_local_browser(p, browser_bin_path, headless=False, port=None, user_data
 
     # 3. 启动 browser
     print(f"正在启动 browser: {' '.join(command)}")
-    subprocess.Popen(command)
+    try:
+        subprocess.Popen(command)
+    except Exception as e:
+        raise ValueError(f"启动 browser 失败，请检查路径设置")
     time.sleep(3)  # 等待浏览器启动
 
     # 4. 连接到 Chrome
@@ -63,6 +66,22 @@ def init_local_browser(p, browser_bin_path, headless=False, port=None, user_data
 
     return context, page
 
+
+def clear_browser_data():
+    # 清理 user_data_dir 路径下的所有内容（保留文件夹本身）
+    import shutil
+
+    # 判断路径是否存在
+    if not os.path.exists(user_data_dir):
+        return  # 目录不存在，无需操作
+
+    # 遍历删除内部的所有内容
+    for item in os.listdir(user_data_dir):
+        item_path = os.path.join(user_data_dir, item)
+        if os.path.isfile(item_path) or os.path.islink(item_path):
+            os.unlink(item_path)  # 删除文件或符号链接
+        elif os.path.isdir(item_path):
+            shutil.rmtree(item_path)  # 删除子目录及其内容  #
 
 def close_all_browser_instances(browser_name='chrome'):
     """根据浏览器名称关闭所有实例"""
@@ -89,17 +108,21 @@ def close_all_browser_instances(browser_name='chrome'):
         print(f"关闭 {browser_name} 时出错 (可能是因为没有正在运行的实例或命令未找到): {e}")
 
 
-
-
 def click_item(page, css_locator, index=0):
     item = page.locator(css_locator)
     if item.count():
         item.nth(index).click()
 
-def input_item(page, css_locator, index=0):
-    item = page.locator(css_locator)
-    if item.count():
-        item.nth(index).click()
+def switch_to_tab_by_url(context, target_url):
+    """
+    在给定的 browser context 中，切换到 URL 匹配的 tab（page）。
+    如果找到，返回该 page；否则返回 None。
+    """
+    for page in context.pages:
+        if page.url == target_url:
+            page.bring_to_front()  # 可选：将该 tab 带到前台（可视化时有用）
+            return page
+    return None
 
 def get_default_browser_bin_path(browser_type):
     if browser_type.lower() == "chrome":

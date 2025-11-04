@@ -7,7 +7,10 @@ block_cipher = None
 a = Analysis(
     ['lwx_project\\main_prod.py'],
     pathex=["."],
-    datas=[('.\\lwx_project\\client\\ui', '.\\ui')],
+    datas=[
+        ('.\\lwx_project\\client\\ui', '.\\ui'),
+        ('.\\static', '.\\static'),  # 静态图片（提示所有important路径的内容）
+    ],
     binaries=[],
     hiddenimports=[],
     hookspath=[],
@@ -28,7 +31,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='李文萱的工作空间_v1.1.4',
+    name='李文萱的工作空间_v1.1.6',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

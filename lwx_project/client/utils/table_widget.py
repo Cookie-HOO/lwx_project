@@ -278,12 +278,31 @@ class TableWidgetWrapper:
         self.table_widget.setItem(i, j, QTableWidgetItem(text))
 
     def clear(self):
-        """全部清空"""
+        """清空所有数据行，但保留列标题和列结构"""
+        # 保存当前列标题
+        headers = self.get_columns()  # 你已有这个方法
+        column_count = len(headers)
+
+        # 清空所有行（自动清除 items 和 cell widgets）
         self.table_widget.setRowCount(0)
-        self.table_widget.setColumnCount(0)
+
+        # 确保列结构和标题保留
+        self.table_widget.setColumnCount(column_count)
+        if headers:
+            self.table_widget.setHorizontalHeaderLabels(headers)
 
     def clear_content(self):
-        """清空内容，保留行列"""
-        for i in range(self.table_widget.rowCount()):
-            for j in range(self.table_widget.columnCount()):
-                self.table_widget.setItem(i, j, QTableWidgetItem(""))
+        """清空所有内容，但保留列标题和列结构"""
+        # 保存当前的列数和列标题
+        column_count = self.table_widget.columnCount()
+        headers = []
+        for i in range(column_count):
+            header_item = self.table_widget.horizontalHeaderItem(i)
+            headers.append(header_item.text() if header_item else f"Column{i}")
+
+        # 清空所有行（这会自动删除所有 items 和 cell widgets）
+        self.table_widget.setRowCount(0)
+
+        # 重新设置列数和标题（防止 setRowCount 影响列结构，虽然通常不会）
+        self.table_widget.setColumnCount(column_count)
+        self.table_widget.setHorizontalHeaderLabels(headers)

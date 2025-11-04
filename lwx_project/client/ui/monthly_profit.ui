@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1355</width>
+    <width>1161</width>
     <height>865</height>
    </rect>
   </property>
@@ -20,7 +20,7 @@
    <bool>true</bool>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout_3" stretch="1,1,1,99">
+   <layout class="QVBoxLayout" name="verticalLayout_3" stretch="1,99">
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_8">
       <item>
@@ -59,7 +59,7 @@
          </size>
         </property>
         <property name="text">
-         <string>每月east数据汇总计算</string>
+         <string>每月利润完成情况汇总计算</string>
         </property>
        </widget>
       </item>
@@ -93,44 +93,6 @@
      </layout>
     </item>
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <item>
-       <widget class="QLabel" name="baoixan_code_rule_table">
-        <property name="text">
-         <string>险种代码忽略规则：</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLineEdit" name="omit_baoxian_code_text">
-        <property name="text">
-         <string>7824,2801,7854</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <spacer name="horizontalSpacer">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <widget class="Line" name="line">
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-     </widget>
-    </item>
-    <item>
      <widget class="QSplitter" name="upload_vs_cal_spliter">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
@@ -158,6 +120,20 @@
       </widget>
       <widget class="QWidget" name="layoutWidget">
        <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QLabel" name="label">
+            <property name="text">
+             <string>目标年-月：</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="target_year_month_text"/>
+          </item>
+         </layout>
+        </item>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_2">
           <item>
@@ -195,13 +171,6 @@
            </widget>
           </item>
          </layout>
-        </item>
-        <item>
-         <widget class="QLabel" name="upload_info_text">
-          <property name="text">
-           <string>当前年份：--，汇总计算 --/--个月度数据，平均耗时 --s</string>
-          </property>
-         </widget>
         </item>
         <item>
          <widget class="QListWidget" name="upload_list"/>
